@@ -191,6 +191,17 @@ tailwind.config = { theme: { extend: {
         <form id="offerteForm" name="offerte" method="POST" data-netlify="true" netlify-honeypot="bot-field">
           <input type="hidden" name="form-name" value="offerte" />
           <p class="hidden"><label>Niet invullen: <input name="bot-field" /></label></p>
+          <div class="mb-5">
+            <span class="text-sm font-semibold text-ink">Wat wenst u te plaatsen? *</span>
+            <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+              <label class="flex items-center gap-2 rounded-lg bg-frost/30 ring-1 ring-ink/10 px-3 py-3 cursor-pointer hover:ring-ice/40 has-[:checked]:ring-ice has-[:checked]:bg-ice/10 has-[:checked]:font-semibold">
+                <input type="radio" name="systeem" value="Airco (met buitenunit)" class="accent-ice" required> Airco (met buitenunit)
+              </label>
+              <label class="flex items-center gap-2 rounded-lg bg-frost/30 ring-1 ring-ink/10 px-3 py-3 cursor-pointer hover:ring-ice/40 has-[:checked]:ring-ice has-[:checked]:bg-ice/10 has-[:checked]:font-semibold">
+                <input type="radio" name="systeem" value="Monoblock (zonder buitenunit)" class="accent-ice"> Monoblock (zonder buitenunit)
+              </label>
+            </div>
+          </div>
           <div class="grid sm:grid-cols-2 gap-4">
             <label class="block"><span class="text-sm text-ink/65">1. Voornaam *</span><input required type="text" name="voornaam" class="mt-1.5 w-full rounded-lg bg-frost/40 ring-1 ring-ink/10 focus:ring-ice px-4 py-3 text-ink placeholder:text-slatey/60 outline-none" placeholder="Uw voornaam"></label>
             <label class="block"><span class="text-sm text-ink/65">2. Naam *</span><input required type="text" name="naam" class="mt-1.5 w-full rounded-lg bg-frost/40 ring-1 ring-ink/10 focus:ring-ice px-4 py-3 text-ink placeholder:text-slatey/60 outline-none" placeholder="Uw familienaam"></label>
