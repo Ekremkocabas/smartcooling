@@ -1,0 +1,12 @@
+# oude URL's
+/index.html            /                       301
+/toestellen.html       /toestellen/            301
+/toestellen            /toestellen/            301
+/algemene-voorwaarden.html  /algemene-voorwaarden/  301
+/algemene-voorwaarden  /algemene-voorwaarden/  301
+/prijzen/              /#offerte               301
+/prijzen               /#offerte               301
+/warmtepomp/           /airco-installatie/     301
+/ventilatie/           /airco-installatie/     301
+# www -> apex
+https://www.smartcooling.be/*  https://smartcooling.be/:splat  301!
