@@ -97,6 +97,13 @@ function reportHtml(d, s) {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:15px;color:#0A1622">${info}</table>`;
 }
 
+
+// ---- HTML helpers voor een leesbare notitie in Odoo ----
+const ed = (v) => String(v == null || v === "" ? "-" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const row = (k, v) => `<tr><td style="padding:3px 14px 3px 0;color:#5b6b7a;white-space:nowrap;vertical-align:top">${k}</td><td style="padding:3px 0;vertical-align:top">${v}</td></tr>`;
+const block = (title, rows) => `<h4 style="margin:14px 0 4px;color:#0A1622">${title}</h4><table style="border-collapse:collapse;font-size:14px">${rows.join("")}</table>`;
+const bandMid = (band) => { const n = String(band || "").replace(/\./g, "").match(/\d+/g); if (!n || !n.length) return 0; const a = n.map(Number); return Math.round((Math.min(...a) + Math.max(...a)) / 2); };
+
 exports.handler = async (event) => {
   try {
     const payload = JSON.parse(event.body || "{}").payload || {};
@@ -123,30 +130,32 @@ exports.handler = async (event) => {
 
     if (form === "aircocheck") {
       const s = score(d);
-      const description = [
-        "AIRCOCHECK via website (smartcooling.be)",
-        `Leadtemperatuur: ${s.temp}`,
-        "",
-        `Systeem (klant): ${d.systeem || "-"}`,
-        `Advies (intern): ${s.systeem}`,
-        `Multisplit-index: ${s.multiIndex}`,
-        `Locatie: ${d.locatie || "-"}${d.locatie === "Bedrijf" ? ` (${d.bedrijf_type || "-"}, ${d.bedrijf_m2 || "?"} m², ${d.bedrijf_personen || "?"} pers., apparatuur ${d.bedrijf_apparatuur || "-"})` : ""}`,
-        `Ruimtes: ${(d.ruimtes || "-").split(" | ").join("\n  ")}`,
-        `Totaal: ± ${nl(s.total)} kW`,
-        `Buitenunits gewenst: ${d.buitenunits || "-"}`,
-        `Wensen: ${d.wensen || "-"}`,
-        `Merk-kader (intern): ${s.merken.join(" | ")}`,
-        `Prijsband (intern, incl. plaatsing): ${s.band}`,
-        "",
-        `Best bereikbaar: ${d.dagdeel || "-"}`,
-        `Bronpagina: ${d.bron_pagina || "-"} · Landingspagina: ${d.landingspagina || "-"} · Gemeentepagina: ${s.gemeentePagina}`,
-        `Apparaat: ${d.apparaat || "-"} · Duur: ${s.dur ? Math.round(s.dur / 60) + " min " + (s.dur % 60) + " s" : "-"}`,
-      ].join("\n");
+      const tempKleur = /HEET/i.test(s.temp) ? "#c0392b" : /LAUW/i.test(s.temp) ? "#d68910" : "#2471a3";
+      const ruimtes = (d.ruimtes || "").split(" | ").filter(Boolean).map(esc).join("<br>") || "-";
+      const locatie = ed(d.locatie) + (d.locatie === "Bedrijf" ? ` (${ed(d.bedrijf_type)}, ${ed(d.bedrijf_m2)} m², ${ed(d.bedrijf_personen)} pers., apparatuur ${ed(d.bedrijf_apparatuur)})` : "");
+      const description =
+        `<p style="font-size:15px;margin:0 0 6px"><b>AIRCOCHECK via smartcooling.be</b> &nbsp; <span style="background:${tempKleur};color:#fff;border-radius:10px;padding:2px 10px;font-weight:700">${ed(s.temp)}</span></p>` +
+        block("Klant", [
+          row("Naam", ed(naam)), row("Gemeente", ed(d.gemeente)), row("GSM", ed(d.gsm)), row("E-mail", ed(d.email)),
+          row("Best bereikbaar", "<b>" + ed(d.dagdeel) + "</b>"),
+        ]) +
+        block("Wat wil de klant?", [
+          row("Systeem", "<b>" + ed(d.systeem) + "</b>"), row("Locatie", locatie), row("Ruimtes", ruimtes),
+          row("Totaal vermogen", "<b>± " + ed(nl(s.total)) + " kW</b>"), row("Buitenunits", ed(d.buitenunits)), row("Wensen", ed(d.wensen)),
+        ]) +
+        block("Advies (intern, niet voor klant)", [
+          row("Advies systeem", "<b>" + ed(s.systeem) + "</b>"), row("Multisplit-index", ed(s.multiIndex)),
+          row("Merk-kader", ed(s.merken.join(" / "))), row("Prijsband", "<b>" + ed(s.band) + "</b> (incl. plaatsing)"),
+        ]) +
+        block("Herkomst", [
+          row("Bronpagina", ed(d.bron_pagina)), row("Landingspagina", ed(d.landingspagina)), row("Gemeentepagina", ed(s.gemeentePagina)),
+          row("Apparaat / duur", ed(d.apparaat) + " · " + (s.dur ? Math.round(s.dur / 60) + " min " + (s.dur % 60) + " s" : "-")),
+        ]);
       vals = {
         name: `Aircocheck - ${naam || "onbekend"} - ${d.gemeente || ""}`.replace(/ - $/, ""),
         type: "opportunity", contact_name: naam, phone: d.gsm || "", email_from: d.email || "",
         street: d.straat || "", zip: d.postcode || "", city: d.gemeente || "",
-        description, priority: s.priority,
+        description, priority: s.priority, expected_revenue: bandMid(s.band),
         x_studio_is_monoblock: isMono, team_id: isMono ? TEAM_MONOBLOCK : TEAM_SALES,
         stage_id: STAGE_NIEUW, source_id: WEBSITE_SOURCE_ID,
       };
@@ -157,13 +166,28 @@ exports.handler = async (event) => {
       vals = {
         name: `Website aanvraag - ${naam || "onbekend"}`, type: "opportunity", contact_name: naam,
         phone: d.telefoon || "", email_from: d.email || "", street: straat, zip: d.postcode || "", city: d.gemeente || "",
-        description: ["Aanvraag via website (smartcooling.be)", `Bronpagina: ${d.bron_pagina || "-"}`, `Type: ${d.systeem || "-"}`,
-          `Aantal airco('s): ${d.aantal || "-"}`, `Gewenste plaatsingsdatum: ${d.plaatsingsdatum || "-"}`,
-          `Gewenst belmoment: ${d.belmoment || "-"}`, `Type ruimte: ${ruimte || "-"}`, "", `Bericht: ${d.bericht || "-"}`].join("\n"),
+        description: `<p style="font-size:15px;margin:0 0 6px"><b>AANVRAAG via smartcooling.be</b></p>` +
+          block("Klant", [row("Naam", ed(naam)), row("Adres", ed([straat, d.postcode, d.gemeente].filter(Boolean).join(", "))), row("Telefoon", ed(d.telefoon)), row("E-mail", ed(d.email)), row("Gewenst belmoment", "<b>" + ed(d.belmoment) + "</b>")]) +
+          block("Aanvraag", [row("Type", "<b>" + ed(d.systeem) + "</b>"), row("Aantal airco('s)", ed(d.aantal)), row("Type ruimte", ed(ruimte)), row("Gewenste plaatsing", ed(d.plaatsingsdatum)), row("Bericht", ed(d.bericht).replace(/\n/g, "<br>"))]) +
+          block("Herkomst", [row("Bronpagina", ed(d.bron_pagina))]),
         x_studio_is_monoblock: isMono, team_id: isMono ? TEAM_MONOBLOCK : TEAM_SALES,
         stage_id: STAGE_NIEUW, source_id: WEBSITE_SOURCE_ID,
       };
     }
+
+
+    // Contact koppelen: bestaand contact op e-mail zoeken, anders aanmaken
+    try {
+      if (vals.email_from || vals.contact_name) {
+        let pid = null;
+        if (vals.email_from) {
+          const found = await rpc("object", "execute_kw", [DB, uid, KEY, "res.partner", "search", [[["email", "=ilike", vals.email_from]]], { limit: 1 }]);
+          if (found && found.length) pid = found[0];
+        }
+        if (!pid) pid = await rpc("object", "execute_kw", [DB, uid, KEY, "res.partner", "create", [{ name: vals.contact_name || vals.email_from, email: vals.email_from || false, phone: vals.phone || false, street: vals.street || false, zip: vals.zip || false, city: vals.city || false }]]);
+        if (pid) vals.partner_id = pid;
+      }
+    } catch (e) { console.warn("partner link failed (lead wordt toch aangemaakt):", e.message); }
 
     let leadId;
     try {
