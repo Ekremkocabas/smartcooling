@@ -141,9 +141,8 @@
     }).join("");
     return '<div class="acdone"><h2>Bedankt, ' + esc(S.c.voornaam) + '!</h2>' +
       '<p class="lead">Dit is onze eerste inschatting van het vermogen per ruimte:</p><ul class="ackw">' + rows + "</ul>" +
-      '<h3>Zo gaat het verder</h3><ul class="acnext"><li><b>Uw aanvraag is goed ontvangen.</b> Uw persoonlijk adviesrapport komt nu in uw mailbox.</li><li><b>Binnen 3 dagen ontvangt u uw richtprijs</b>, op basis van uw Aircocheck.</li><li><b>Stuur ons ondertussen een paar foto\'s</b>: de plaats van de binnenunit, de buitenunit en het stopcontact in de buurt. Via WhatsApp of als antwoord op onze mail.</li><li><b>Wij bevestigen uw prijs</b> via uw foto\'s, een aangepaste offerte of een gratis plaatsbezoek.</li><li><b>U beslist, wij plaatsen.</b></li></ul>' +
+      '<h3>Zo gaat het verder</h3><ul class="acnext"><li><b>Uw aanvraag is goed ontvangen.</b> Uw persoonlijk adviesrapport komt nu in uw mailbox.</li><li><b>Binnen 3 dagen streven wij ernaar u uw richtprijs te sturen</b>, op basis van uw Aircocheck.</li><li><b>Stuur ons ondertussen een paar foto\'s</b>: de plaats van de binnenunit, de buitenunit en het stopcontact in de buurt. Via WhatsApp of als antwoord op onze mail.</li><li><b>Wij bevestigen uw prijs</b> via uw foto\'s, een aangepaste offerte of een gratis plaatsbezoek.</li><li><b>U beslist, wij plaatsen.</b></li></ul>' +
       '<p><a href="https://wa.me/32470961121" class="btn p" target="_blank" rel="noopener">Foto\'s sturen via WhatsApp</a></p>' +
-      '<p class="acprice">Single split vanaf € 1.250, incl. plaatsing</p>' +
       '<p class="small">Uw prijs ligt altijd vast vóór de plaatsing. Na de installatie komen er nooit extra kosten.</p>' +
       '<p><a href="/toestellen/" class="btn s">Bekijk onze toestellen</a></p></div>';
   }

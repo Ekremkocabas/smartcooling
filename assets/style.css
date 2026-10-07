@@ -320,3 +320,27 @@ body{padding-bottom:64px}
 .acul li{margin:6px 0}
 @media(prefers-reduced-motion:reduce){.acprog i{transition:none}}
 .hero-c .hero-sub{color:var(--ink2);font-weight:500;opacity:.85}
+
+/* energielabel op foto */
+.mimg,.gimg{position:relative}
+.elabel{position:absolute;top:10px;left:10px;z-index:2;display:inline-flex;align-items:center;gap:3px;height:26px;padding:0 16px 0 9px;color:#fff;font:800 13px/1 var(--fh,system-ui),sans-serif;letter-spacing:.02em;clip-path:polygon(0 0,calc(100% - 11px) 0,100% 50%,calc(100% - 11px) 100%,0 100%);border-radius:3px 0 0 3px}
+.elabel small{font-size:10px;font-weight:600;opacity:.9}
+.elabel.e3{background:#00a651}.elabel.e2{background:#50b848}.elabel.e1{background:#bed630;color:#0A1622}
+.gimg .elabel{top:14px;left:14px;height:30px;font-size:15px}
+
+/* realisaties */
+.rgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:22px}
+.rgrid figure{margin:0;background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.rgrid img{display:block;width:100%;height:auto;aspect-ratio:4/3;object-fit:cover}
+.rgrid figcaption{font-size:.85rem;line-height:1.4;padding:10px 12px;color:var(--muted,#4A5A68)}
+@media(max-width:900px){.rgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* meerwerk tabel */
+.mtable{width:100%;border-collapse:collapse;margin:14px 0;font-size:.95rem}
+.mtable th,.mtable td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line)}
+.mtable th{background:var(--ice,#EEF5FA);font-weight:700}
+.mtable td:last-child{white-space:nowrap;font-weight:600}
+@media(max-width:600px){.mtable td:last-child{white-space:normal}}
+
+h2[id]{scroll-margin-top:96px}
+.mtable td:first-child{width:55%}
