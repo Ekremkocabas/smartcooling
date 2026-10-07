@@ -46,6 +46,11 @@ function score(d) {
   if (has("Bediening via app") || has("AI-sturing")) merken.push("LG (ThinQ) / Nuova Infinity");
   if (has("Scherpe prijs")) merken.push("Nuova Infinity / LG DUALCOOL WZ");
   if (!merken.length) merken.push("LG Standard Plus / Nuova Infinity (standaard)");
+  // multisplit: enkel binnenunits die op een multi passen (DUALCOOL WZ is enkel single split)
+  if (/^Multisplit/.test(systeem)) {
+    for (let i = 0; i < merken.length; i++) merken[i] = merken[i].replace("LG DUALCOOL WZ", "LG Standard Plus");
+    if (total > 8.5 || kws.some((k) => k > 5.5)) systeem += " – LET OP: groot vermogen op 1 buitenunit (bv. Nuova 4P-CINF-MS100 of LG MU5R36, ± 10,5 kW); 2 single splits overwegen";
+  }
   let tier = 1.0;
   if (has("Hoogste kwaliteit") || has("Laag verbruik") || has("Design")) tier = 1.35;
   else if (has("Stil") || has("Zuivere lucht") || has("AI-sturing")) tier = 1.15;
@@ -130,7 +135,7 @@ exports.handler = async (event) => {
 
     if (form === "aircocheck") {
       const s = score(d);
-      const tempKleur = /HEET/i.test(s.temp) ? "#c0392b" : /LAUW/i.test(s.temp) ? "#d68910" : "#2471a3";
+      const tempKleur = /HEET/i.test(s.temp) ? "#c0392b" : /WARM/i.test(s.temp) ? "#d68910" : "#2471a3";
       const ruimtes = (d.ruimtes || "").split(" | ").filter(Boolean).map(esc).join("<br>") || "-";
       const locatie = ed(d.locatie) + (d.locatie === "Bedrijf" ? ` (${ed(d.bedrijf_type)}, ${ed(d.bedrijf_m2)} m², ${ed(d.bedrijf_personen)} pers., apparatuur ${ed(d.bedrijf_apparatuur)})` : "");
       const description =
