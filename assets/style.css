@@ -344,3 +344,11 @@ body{padding-bottom:64px}
 
 h2[id]{scroll-margin-top:96px}
 .mtable td:first-child{width:55%}
+
+/* realisaties per project */
+.proj{margin-top:34px;padding-top:26px;border-top:1px solid var(--line)}
+.proj:first-of-type{border-top:0;padding-top:0}
+.proj h2,.proj h3{margin:0 0 6px}
+.proj>p{max-width:760px;margin:0 0 6px}
+.proj .plinks{margin:0 0 4px}
+.proj .rgrid{margin-top:14px}
