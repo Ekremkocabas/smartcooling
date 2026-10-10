@@ -1,4 +1,4 @@
-// netlify/functions/submission-created.js  (v8)
+// netlify/functions/submission-created.js  (v9 — monoblock: richtprijs excl. btw + automatische offerte)
 // Runs AUTOMATICALLY on every verified Netlify form submission.
 // Creates a lead in Odoo CRM for the forms "offerte" and "aircocheck".
 // Aircocheck: server-side scoring (kW per ruimte, multisplit, merk-kader, prijsband,
@@ -9,6 +9,10 @@
 // Optional Odoo custom field (Studio, type Html) on crm.lead:
 //   x_studio_aircocheck_html  -> used by the adviesrapport e-mail template.
 //   If it does not exist yet, the lead is still created without it.
+// Monoblock (Aircocheck): the customer already saw a richtprijs excl. btw. The function
+//   writes the offerte lines into the lead, puts the offerte table in the e-mail html and
+//   tries to create a quotation (sale.order) with the matching Odoo products.
+//   Set ODOO_AUTO_QUOTE=0 in Netlify to disable quotation creation.
 
 const WEBSITE_SOURCE_ID = 18;   // utm.source "Website"
 const TEAM_SALES = 1;           // Verkoop (Airco)
@@ -102,6 +106,65 @@ function reportHtml(d, s) {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:15px;color:#0A1622">${info}</table>`;
 }
 
+// ---------- Monoblock (richtprijs is al aan de klant getoond) ----------
+function parseMono(d) {
+  try { const m = JSON.parse(d.mono_json || ""); if (m && Array.isArray(m.units)) return m; } catch (e) {}
+  return null;
+}
+const eur = (n) => "€ " + Number(n || 0).toLocaleString("nl-BE");
+function monoReportHtml(d, m) {
+  const td = 'style="padding:9px 12px;border-bottom:1px solid #e3eaf0;vertical-align:top"';
+  const tdr = 'style="padding:9px 12px;border-bottom:1px solid #e3eaf0;vertical-align:top;white-space:nowrap"';
+  const rows = (m.lines || []).map((l) => `<tr><td ${td}>${esc(l.t)}</td><td ${tdr} align="right"><b>${l.p == null ? esc(l.txt || "—") : eur(l.p)}</b></td></tr>`).join("");
+  const info = [
+    ["Systeem", "Monoblock zonder buitenunit (Nuova Polar)"], ["Aantal toestellen", String((m.units || []).filter((u) => u.actief).length)],
+    ["Voorkeur dagdeel", d.dagdeel],
+    ["Adres", [d.straat, [d.postcode, d.gemeente].filter(Boolean).join(" ")].filter(Boolean).join(", ")],
+  ].map(([k, v]) => `<tr><td style="padding:9px 12px;border-bottom:1px solid #e3eaf0;vertical-align:top;color:#5B6F80;width:38%">${esc(k)}</td><td ${td}>${esc(v || "-")}</td></tr>`).join("");
+  return `<h3 style="font-family:Arial,sans-serif;font-size:17px;margin:0 0 8px;color:#0A1622">Uw richtprijs</h3>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:15px;color:#0A1622">${rows}
+<tr><td style="padding:12px;background:#FFF4E8;font-weight:bold">Richtprijs excl. btw</td><td style="padding:12px;background:#FFF4E8;font-weight:bold;font-size:20px;color:#C2691E;white-space:nowrap" align="right">${eur(m.totaal_excl)}</td></tr></table>
+<p style="font-family:Arial,sans-serif;font-size:13px;color:#5B6F80;margin:8px 0 22px">Standaardplaatsing per toestel: boringen, condensafvoer, standaard roosters, aansluiting op het stopcontact, testen en uitleg. Diamantboring droog met stofafzuiging. Alle prijzen excl. btw: 6&nbsp;% btw voor particulieren, 21&nbsp;% voor bedrijven. Definitieve prijs na gratis plaatsbezoek. Meestal binnen 1 week geplaatst.</p>
+<h3 style="font-family:Arial,sans-serif;font-size:17px;margin:0 0 8px;color:#0A1622">Uw gegevens</h3>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:15px;color:#0A1622">${info}</table>`;
+}
+
+// Odoo-producten zoeken op naam (ilike); niet gevonden -> notitieregel in de offerte
+const PRODUCT_KEYS = [
+  { re: /Polar\+ 25/i, keys: ["Polar+ 25", "Polar Plus 25", "Polar+"] },
+  { re: /Polar Pro 40/i, keys: ["Polar Pro 40", "Polar Pro"] },
+  { re: /^Speciale buitenkleppen/i, keys: ["Speciale buitenkleppen", "buitenkleppen"] },
+  { re: /^Betonboring/i, keys: ["Betonboring"] },
+  { re: /^Speciale roosters/i, keys: ["Speciale roosters"] },
+  { re: /^Aparte elektrische lijn/i, keys: ["Aparte elektrische lijn", "voedingskabel"] },
+  { re: /^Oud toestel/i, keys: ["Oud toestel"] },
+];
+async function createQuotation(rpc, DB, uid, KEY, partnerId, leadId, m, naam) {
+  if (!partnerId) return null;
+  const cache = {};
+  const findProduct = async (keys) => {
+    for (const k of keys) {
+      if (cache[k] !== undefined) { if (cache[k]) return cache[k]; continue; }
+      const r = await rpc("object", "execute_kw", [DB, uid, KEY, "product.product", "search_read", [[["name", "ilike", k], ["sale_ok", "=", true]]], { fields: ["id", "name"], limit: 1 }]);
+      cache[k] = r && r.length ? r[0].id : null;
+      if (cache[k]) return cache[k];
+    }
+    return null;
+  };
+  const lines = [];
+  for (const l of m.lines || []) {
+    const mt = /× (\d+)$/.exec(l.t); const qty = mt ? Number(mt[1]) : 1;
+    const def = PRODUCT_KEYS.find((x) => x.re.test(l.t.replace(/^Monoblock \d+: /, "")));
+    const pid = def ? await findProduct(def.keys) : null;
+    if (pid && l.p != null) lines.push([0, 0, { product_id: pid, product_uom_qty: qty, price_unit: Math.round(l.p / qty), name: l.t }]);
+    else if (pid) lines.push([0, 0, { product_id: pid, product_uom_qty: 1, name: l.t + (l.txt ? " – " + l.txt : "") }]);
+    else lines.push([0, 0, { display_type: "line_note", name: l.t + (l.p != null ? " – " + eur(l.p) : l.txt ? " – " + l.txt : "") + (def ? " (product niet gevonden in Odoo)" : "") }]);
+  }
+  lines.push([0, 0, { display_type: "line_note", name: "Richtprijs uit de Aircocheck: " + eur(m.totaal_excl) + " excl. btw. Standaardplaatsing per toestel: boringen, condensafvoer, standaard roosters, aansluiting op stopcontact, testen en uitleg. Definitieve prijs na gratis plaatsbezoek." }]);
+  const vals = { partner_id: partnerId, opportunity_id: leadId, origin: "Aircocheck monoblock – " + (naam || ""), order_line: lines };
+  try { return await rpc("object", "execute_kw", [DB, uid, KEY, "sale.order", "create", [vals]]); }
+  catch (e) { delete vals.opportunity_id; return await rpc("object", "execute_kw", [DB, uid, KEY, "sale.order", "create", [vals]]); }
+}
 
 // ---- HTML helpers voor een leesbare notitie in Odoo ----
 const ed = (v) => String(v == null || v === "" ? "-" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -133,7 +196,25 @@ exports.handler = async (event) => {
     const isMono = /monoblock/i.test(d.systeem || "");
     let vals, extra = {};
 
-    if (form === "aircocheck") {
+    const mono = form === "aircocheck" ? parseMono(d) : null;
+    if (form === "aircocheck" && mono) {
+      const units = (mono.units || []).map((u) => `Monoblock ${u.nr}: ${esc(u.model)} (${esc(u.m2)}, ${esc(u.kw)}) – ${u.actief ? eur(u.prijs) : "<b style=\"color:#B42318\">NIET MOGELIJK: " + esc(u.reden) + "</b>"}`).join("<br>");
+      const lines = (mono.lines || []).map((l) => `${esc(l.t)}: <b>${l.p == null ? esc(l.txt || "—") : eur(l.p)}</b>`).join("<br>");
+      const description =
+        `<p style="font-size:15px;margin:0 0 6px"><b>AIRCOCHECK MONOBLOCK via smartcooling.be</b> &nbsp; <span style="background:#2471a3;color:#fff;border-radius:10px;padding:2px 10px;font-weight:700">RICHTPRIJS GETOOND</span></p>` +
+        block("Klant", [row("Naam", ed(naam)), row("Gemeente", ed(d.gemeente)), row("GSM", ed(d.gsm)), row("E-mail", ed(d.email)), row("Best bereikbaar", "<b>" + ed(d.dagdeel) + "</b>")]) +
+        block("Toestellen", [row("Monoblocks", units || "-"), row("Controles", ed(d.mono_checks).replace(/ \| /g, "<br>"))]) +
+        block("Offerte (zoals getoond aan de klant, excl. btw)", [row("Regels", lines || "-"), row("Richtprijs", "<b>" + eur(mono.totaal_excl) + " excl. btw</b> (6 % particulier / 21 % bedrijf)"), row("Extra's", ed(d.mono_extras))]) +
+        block("Herkomst", [row("Bronpagina", ed(d.bron_pagina)), row("Landingspagina", ed(d.landingspagina)), row("Apparaat / duur", ed(d.apparaat) + " · " + (Number(d.duur_sec) ? Math.round(Number(d.duur_sec) / 60) + " min" : "-"))]);
+      vals = {
+        name: `Aircocheck monoblock - ${naam || "onbekend"} - ${d.gemeente || ""}`.replace(/ - $/, ""),
+        type: "opportunity", contact_name: naam, phone: d.gsm || "", email_from: d.email || "",
+        street: d.straat || "", zip: d.postcode || "", city: d.gemeente || "",
+        description, priority: "2", expected_revenue: Number(mono.totaal_excl) || 0,
+        x_studio_is_monoblock: true, team_id: TEAM_MONOBLOCK, stage_id: STAGE_NIEUW, source_id: WEBSITE_SOURCE_ID,
+      };
+      extra = { x_studio_aircocheck_html: monoReportHtml(d, mono) };
+    } else if (form === "aircocheck") {
       const s = score(d);
       const tempKleur = /HEET/i.test(s.temp) ? "#c0392b" : /WARM/i.test(s.temp) ? "#d68910" : "#2471a3";
       const ruimtes = (d.ruimtes || "").split(" | ").filter(Boolean).map(esc).join("<br>") || "-";
@@ -204,6 +285,10 @@ exports.handler = async (event) => {
       } else throw e;
     }
     console.log("Odoo lead created:", leadId, "form:", form, "monoblock:", isMono);
+    if (mono && process.env.ODOO_AUTO_QUOTE !== "0") {
+      try { const so = await createQuotation(rpc, DB, uid, KEY, vals.partner_id, leadId, mono, naam); console.log("Odoo quotation created:", so); }
+      catch (e) { console.warn("quotation not created (lead is OK):", e.message); }
+    }
     return { statusCode: 200, body: JSON.stringify({ ok: true, leadId }) };
   } catch (e) {
     console.error("lead-to-odoo error:", e);
