@@ -413,7 +413,7 @@
     var btn = root.querySelector("[data-next]"); if (btn) { btn.setAttribute("aria-disabled", "true"); btn.textContent = "Bezig met verzenden…"; }
     var body = new URLSearchParams(payload()).toString();
     fetch("/", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: body })
-      .then(function (r) { if (!r.ok) throw new Error(r.status); S.sent = true; S.step = flow().length; clearSave(); render(); track(S.step); window.scrollTo(0, root.offsetTop - 90); })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); S.sent = true; try { if (window.scTrack) window.scTrack("Lead", { content_name: isMono() ? "aircocheck_monoblock" : "aircocheck_split" }); } catch (e) {} S.step = flow().length; clearSave(); render(); track(S.step); window.scrollTo(0, root.offsetTop - 90); })
       .catch(function () {
         var e = document.getElementById("acsenderr");
         if (e) e.innerHTML = 'Verzenden lukte niet. Probeer opnieuw, of <a href="' + (window.SC_WA || "#") + '" target="_blank" rel="noopener">stuur ons een WhatsApp</a>.';
