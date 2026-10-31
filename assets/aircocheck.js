@@ -1,4 +1,4 @@
-/* Smart Cooling Aircocheck v9 — split: geen merken/prijzen naar de klant; monoblock: richtprijs excl. btw */
+/* Smart Cooling Aircocheck v10 — wensen max. 3 + prioriteit + verwarming; split: geen merken/prijzen naar de klant; monoblock: richtprijs excl. btw */
 (function () {
   "use strict";
   var KEY = "sc_aircocheck_v2";
@@ -12,7 +12,8 @@
   var ORI = ["Noord", "Oost", "Zuid", "West", "Weet ik niet"];
   var GLAS = ["Weinig", "Normaal", "Veel"];
   var ISO = ["Goed", "Gemiddeld", "Slecht"];
-  var WENSEN = ["Stil", "Design", "Zuivere lucht / allergie", "Laag verbruik", "Bediening via app", "AI-sturing", "Hoogste kwaliteit", "Scherpe prijs"];
+  var WENSEN = ["Stil", "Laag verbruik", "Zuivere lucht / allergie", "Design", "Bediening via app", "AI-sturing"], MAXW = 3;
+  var PRIO = ["Hoogste kwaliteit", "Scherpe prijs"], VERW = ["Bijverwarmen", "Hoofdverwarming"];
   var BEDRIJF = ["Kantoor", "Winkel", "Praktijk", "Horeca", "Serverruimte"];
   var MONO = "Monoblock zonder buitenunit", SPLIT = "Airco met buitenunit";
 
@@ -33,7 +34,7 @@
   function blankMono() { return { n: "", sizes: [], ans: { g: "", w: "", b: "", s: "", m: "" }, excl: { g: [], w: [], b: [], m: [] }, hoog: 0, beton: 0, kleur: 0, lijn: "Nee", oud: "Nee" }; }
   var S = {
     step: 1, systeem: "", locatie: "", bedrijf: { type: "", m2: "", pers: "", app: "" },
-    n: "", rooms: [], buiten: "", wensen: [], dagdeel: "", mono: blankMono(),
+    n: "", rooms: [], buiten: "", wensen: [], prio: "", verw: "", dagdeel: "", mono: blankMono(),
     c: { voornaam: "", naam: "", gsm: "", email: "", straat: "", postcode: "", gemeente: "" },
     sent: false, t0: T0
   };
@@ -59,10 +60,11 @@
   // ---------- helpers ----------
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   function eur(n) { return "€ " + Number(n).toLocaleString("nl-BE"); }
-  function chips(name, opts, val, multi) {
+  function chips(name, opts, val, multi, max) {
+    var full = multi && max && val.length >= max;
     return '<div class="acc" role="group">' + opts.map(function (o) {
-      var on = multi ? val.indexOf(o) > -1 : val === o;
-      return '<button type="button" class="ach' + (on ? " on" : "") + '" data-k="' + name + '" data-v="' + esc(o) + '" aria-pressed="' + on + '">' + esc(o) + "</button>";
+      var on = multi ? val.indexOf(o) > -1 : val === o, dim = full && !on;
+      return '<button type="button" class="ach' + (on ? " on" : "") + '" data-k="' + name + '" data-v="' + esc(o) + '" aria-pressed="' + on + '"' + (dim ? ' style="opacity:.45" aria-disabled="true"' : "") + '>' + esc(o) + "</button>";
     }).join("") + "</div>";
   }
   function kw(r) {
@@ -197,8 +199,12 @@
     return h;
   }
   function vWens() {
-    return '<h2>Wat vindt u belangrijk?</h2><p class="small">Kies zoveel als u wilt.</p>' + chips("wensen", WENSEN, S.wensen, true) +
-      '<p class="acnote">Hoe meer wensen u aanvinkt, hoe hoger de prijs kan uitvallen. Wij zoeken altijd de beste balans.</p>';
+    var left = MAXW - S.wensen.length;
+    return '<h2>Wat vindt u het belangrijkst?</h2><p class="small">Kies maximaal 3, zo kunnen we gerichter adviseren.</p>' + chips("wensen", WENSEN, S.wensen, true, MAXW) +
+      '<p class="small" aria-live="polite">' + S.wensen.length + ' van ' + MAXW + ' gekozen' + (left === 0 ? ' – wilt u een andere wens? Klik eerst een gekozen wens weg.' : '') + '</p>' +
+      '<h3 class="acsub">Wat weegt het zwaarst?</h3>' + chips("prio", PRIO, S.prio) +
+      '<h3 class="acsub">Hoe wilt u verwarmen met de airco?</h3>' + chips("verw", VERW, S.verw) +
+      (S.verw === "Hoofdverwarming" ? '<p class="acnote">&#8505;&#65039; Toestellen die geschikt zijn als hoofdverwarming zijn vaak iets duurder dan andere modellen.</p>' : '');
   }
   // --- monoblock ---
   function vM1() {
@@ -363,7 +369,9 @@
     else if (k === "n") { S.n = v; setRooms(v); }
     else if (k === "buiten") S.buiten = v;
     else if (k === "dagdeel") S.dagdeel = v;
-    else if (k === "wensen") { var i = S.wensen.indexOf(v); if (i > -1) S.wensen.splice(i, 1); else S.wensen.push(v); }
+    else if (k === "wensen") { var i = S.wensen.indexOf(v); if (i > -1) S.wensen.splice(i, 1); else if (S.wensen.length < MAXW) S.wensen.push(v); }
+    else if (k === "prio") S.prio = S.prio === v ? "" : v;
+    else if (k === "verw") S.verw = S.verw === v ? "" : v;
     else if (k === "mn") setMonoN(v);
     else if (k.indexOf("ms.") === 0) M().sizes[+k.slice(3)] = v;
     else if (k.indexOf("mq.") === 0) { var q = k.slice(3); M().ans[q] = v; if (v === "Ja" && M().excl[q]) M().excl[q] = []; if (q === "s") M().lijn = v === "Nee" ? "Ja" : M().lijn; clampCounts(); }
@@ -378,7 +386,7 @@
       "form-name": "aircocheck", "bot-field": "",
       systeem: S.systeem, locatie: S.locatie,
       bedrijf_type: S.bedrijf.type, bedrijf_m2: S.bedrijf.m2, bedrijf_personen: S.bedrijf.pers, bedrijf_apparatuur: S.bedrijf.app,
-      wensen: S.wensen.join(", "), dagdeel: S.dagdeel,
+      wensen: S.wensen.concat(S.prio ? [S.prio] : []).join(", "), prioriteit: S.prio, verwarming: S.verw, dagdeel: S.dagdeel,
       voornaam: S.c.voornaam, naam: S.c.naam, gsm: gsmFmt(S.c.gsm), email: S.c.email,
       straat: S.c.straat, postcode: S.c.postcode, gemeente: S.c.gemeente,
       bron_pagina: document.referrer ? (function () { try { return new URL(document.referrer).pathname; } catch (e) { return document.referrer; } })() : "direct",
