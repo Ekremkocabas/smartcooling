@@ -259,7 +259,7 @@ function leadMailHtml(ctx) {
     ]);
   }
   const herkomst = mrows([
-    ["Pagina", d.landingspagina && d.landingspagina !== "/" ? SITE + d.landingspagina : (d.bron_pagina && d.bron_pagina !== "/" ? SITE + d.bron_pagina : "")],
+    ["Pagina", (() => { const v = (d.landingspagina && d.landingspagina !== "/" ? d.landingspagina : d.bron_pagina) || ""; return !v || v === "/" ? "Homepagina" : v.charAt(0) === "/" ? SITE + v : v; })()],
     ["Apparaat", d.apparaat && d.apparaat !== "mobiel" && d.apparaat !== "desktop" ? d.apparaat : ""],
   ]);
   const ok = odoo && odoo.leadId;
@@ -355,29 +355,23 @@ async function pushToOdoo(vals, extra, mono, naam) {
   const uid = await rpc("common", "authenticate", [DB, LOGIN, KEY, {}]);
   if (!uid) throw new Error("Odoo-aanmelding mislukt (login/API key nakijken)");
 
-  // Bekende klant? (eerdere lead op e-mail of telefoon)
-  let eerder = null;
-  try {
-    const dom = ["|", ["email_from", "=ilike", vals.email_from || "__none__"], ["phone", "ilike", (vals.phone || "__none__").replace(/\s|\/|\./g, "").slice(-8)]];
-    const prev = await rpc("object", "execute_kw", [DB, uid, KEY, "crm.lead", "search_read", [dom], { fields: ["id", "name", "create_date"], limit: 1, order: "create_date desc" }]);
-    if (prev && prev.length) {
-      const p = prev[0]; const dt = new Date(p.create_date.replace(" ", "T") + "Z");
-      eerder = { id: p.id, naam: p.name, datum: dt.toLocaleDateString("nl-BE", { timeZone: "Europe/Brussels" }), url: `${URL.replace(/\/$/, "")}/odoo/crm/${p.id}` };
-    }
-  } catch (e) { console.warn("eerdere lead check mislukt:", e.message); }
-
-  // Contact koppelen: bestaand contact op e-mail zoeken, anders aanmaken
-  try {
-    if (vals.email_from || vals.contact_name) {
-      let pid = null;
-      if (vals.email_from) {
-        const found = await rpc("object", "execute_kw", [DB, uid, KEY, "res.partner", "search", [[["email", "=ilike", vals.email_from]]], { limit: 1 }]);
-        if (found && found.length) pid = found[0];
-      }
-      if (!pid) pid = await rpc("object", "execute_kw", [DB, uid, KEY, "res.partner", "create", [{ name: vals.contact_name || vals.email_from, email: vals.email_from || false, phone: vals.phone || false, street: vals.street || false, zip: vals.zip || false, city: vals.city || false }]]);
-      if (pid) vals.partner_id = pid;
-    }
-  } catch (e) { console.warn("partner link failed (lead wordt toch aangemaakt):", e.message); }
+  // Bekende klant (eerdere lead) + bestaand contact: parallel opzoeken (sneller)
+  let eerder = null, pid = null;
+  const prevDom = ["|", ["email_from", "=ilike", vals.email_from || "__none__"], ["phone", "ilike", (vals.phone || "__none__").replace(/\s|\/|\./g, "").slice(-8)]];
+  const [prev, found] = await Promise.all([
+    rpc("object", "execute_kw", [DB, uid, KEY, "crm.lead", "search_read", [prevDom], { fields: ["id", "name", "create_date"], limit: 1, order: "create_date desc" }]).catch((e) => { console.warn("eerdere lead check mislukt:", e.message); return []; }),
+    vals.email_from ? rpc("object", "execute_kw", [DB, uid, KEY, "res.partner", "search", [[["email", "=ilike", vals.email_from]]], { limit: 1 }]).catch((e) => { console.warn("partner search mislukt:", e.message); return []; }) : Promise.resolve([]),
+  ]);
+  if (prev && prev.length) {
+    const p = prev[0]; const dt = new Date(p.create_date.replace(" ", "T") + "Z");
+    eerder = { id: p.id, naam: p.name, datum: dt.toLocaleDateString("nl-BE", { timeZone: "Europe/Brussels" }), url: `${URL.replace(/\/$/, "")}/odoo/crm/${p.id}` };
+  }
+  if (found && found.length) pid = found[0];
+  else if (vals.email_from || vals.contact_name) {
+    try { pid = await rpc("object", "execute_kw", [DB, uid, KEY, "res.partner", "create", [{ name: vals.contact_name || vals.email_from, email: vals.email_from || false, phone: vals.phone || false, street: vals.street || false, zip: vals.zip || false, city: vals.city || false }]]); }
+    catch (e) { console.warn("partner create failed (lead wordt toch aangemaakt):", e.message); }
+  }
+  if (pid) vals.partner_id = pid;
 
   let leadId;
   try {
@@ -427,7 +421,7 @@ exports.handler = async (event) => {
         description, priority: "2", expected_revenue: Number(mono.totaal_excl) || 0,
         x_studio_is_monoblock: true, team_id: TEAM_MONOBLOCK, stage_id: STAGE_NIEUW, source_id: WEBSITE_SOURCE_ID,
       };
-      extra = { x_studio_aircocheck_html: monoReportHtml(d, mono) };
+      extra = {}; // x_studio_aircocheck_html bestaat niet in Odoo (31/10/2026)
     } else if (form === "aircocheck") {
       const s = score(d); ctx.s = s;
       const tempKleur = /HEET/i.test(s.temp) ? "#c0392b" : /WARM/i.test(s.temp) ? "#d68910" : "#2471a3";
@@ -459,7 +453,7 @@ exports.handler = async (event) => {
         x_studio_is_monoblock: isMono, team_id: isMono ? TEAM_MONOBLOCK : TEAM_SALES,
         stage_id: STAGE_NIEUW, source_id: WEBSITE_SOURCE_ID,
       };
-      extra = { x_studio_aircocheck_html: reportHtml(d, s) };
+      extra = {};
     } else {
       const straat = [d.straat, d.huisnr].filter(Boolean).join(" ").trim();
       const ruimte = Array.isArray(d.ruimte) ? d.ruimte.join(", ") : (d.ruimte || "");
@@ -475,9 +469,9 @@ exports.handler = async (event) => {
       };
     }
 
-    // 1) Odoo (max. 7 s, anders gaat de mail toch uit met status "niet in Odoo") + rijafstand (parallel, max. 4 s)
+    // 1) Odoo (max. 8,5 s, anders gaat de mail toch uit met status "niet in Odoo") + rijafstand (parallel, max. 4 s)
     const [odooRes, afst] = await Promise.all([
-      withTimeout(pushToOdoo(vals, extra, mono, naam), 7000, "Odoo").catch((e) => { console.error("lead-to-odoo error:", e.message); return { error: e.message }; }),
+      withTimeout(pushToOdoo(vals, extra, mono, naam), 8500, "Odoo").catch((e) => { console.error("lead-to-odoo error:", e.message); return { error: e.message }; }),
       withTimeout(afstand(d), 4000, "Afstand").catch((e) => { console.warn("afstand niet berekend:", e.message); return null; }),
     ]);
     ctx.odoo = odooRes; ctx.afstand = afst; ctx.eerder = odooRes && odooRes.eerder;
