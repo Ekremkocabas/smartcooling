@@ -26,8 +26,10 @@
 
   var FLOW = {
     split: ["sys", "waar", "ruimtes", "wens", "contact", "klaar"],
-    mono: ["sys", "m1", "m2", "m3", "m4", "m5", "contact", "klaar"]
+    mono: ["sys", "m1", "m2", "m3", "m4", "m5", "contact", "klaar"],
+    monoDirect: ["m1", "m2", "m3", "m4", "m5", "contact", "klaar"]   // via /aircocheck/?sys=mono (monoblock-pagina): systeemvraag overslaan
   };
+  var DIRECT_MONO = /[?&]sys=mono\b/.test(location.search);
   var NAMES = { sys: "Systeem", waar: "Waar", ruimtes: "Ruimtes", wens: "Wensen", contact: "Contact", klaar: "Resultaat", m1: "Aantal", m2: "Gevelmuur", m3: "Controles", m4: "Bijzonderheden", m5: "Richtprijs" };
 
   function blankRoom() { return { type: "", m2: "", ori: "", glas: "", iso: "" }; }
@@ -43,10 +45,12 @@
     var raw = localStorage.getItem(KEY);
     if (raw) { var o = JSON.parse(raw); if (o && !o.sent && o.step > 1 && o.mono) { S = o; restored = true; } }
   } catch (e) {}
+  if (DIRECT_MONO && !(restored && S.systeem === MONO)) { S = { step: 1, systeem: MONO, locatie: "", bedrijf: { type: "", m2: "", pers: "", app: "" }, n: "", rooms: [], buiten: "", wensen: [], prio: "", verw: "", dagdeel: "", mono: blankMono(), c: { voornaam: "", naam: "", gsm: "", email: "", straat: "", postcode: "", gemeente: "" }, sent: false, t0: T0, direct: true }; restored = false; }
+  else if (DIRECT_MONO) S.direct = true;
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
   function clearSave() { try { localStorage.removeItem(KEY); } catch (e) {} }
 
-  function flow() { return S.systeem === MONO ? FLOW.mono : FLOW.split; }
+  function flow() { return S.systeem === MONO ? (S.direct ? FLOW.monoDirect : FLOW.mono) : FLOW.split; }
   function cur() { return flow()[S.step - 1]; }
   function isMono() { return S.systeem === MONO; }
 

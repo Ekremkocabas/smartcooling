@@ -188,9 +188,19 @@ const mblock = (title, rowsHtml, accent) => rowsHtml ? `<tr><td style="padding:1
 
 // Bel / WhatsApp / Mail-knoppen (WhatsApp met vooraf ingevuld bericht)
 const waNumber = (t) => { let n = String(t || "").replace(/[^\d+]/g, ""); if (n.startsWith("00")) n = n.slice(2); else if (n.startsWith("+")) n = n.slice(1); else if (n.startsWith("0")) n = "32" + n.slice(1); return n; };
+// Leadtemperatuur voor het korte formulier (geen Aircocheck-data)
+function shortTemp(d) {
+  let pts = 0;
+  const n = parseInt(d.aantal, 10); if (n >= 2) pts += 2; else if (n === 1) pts += 1;
+  if (d.belmoment) pts += 1;
+  if ((d.bericht || "").trim().length > 40) pts += 1;
+  if (/monoblock/i.test(d.systeem || "")) pts += 1;
+  return pts >= 4 ? "HEET" : pts >= 2 ? "WARM" : "LAUW";
+}
 function actionsHtml(d, naam) {
   const tel = d.gsm || d.telefoon; if (!tel && !d.email) return "";
-  const btn = (bg, href, txt) => `<td style="padding:0 8px 0 0"><a href="${href}" style="display:inline-block;background:${bg};color:#fff;text-decoration:none;font-weight:bold;font-size:14px;padding:11px 18px;border-radius:8px">${txt}</a></td>`;
+  // tabel-knoppen: Outlook negeert padding op <a>, dus de cel krijgt de kleur en de padding
+  const btn = (bg, href, txt) => `<td style="padding:0 8px 0 0"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td bgcolor="${bg}" style="background:${bg};border-radius:8px;padding:12px 20px"><a href="${href}" style="color:#ffffff;text-decoration:none;font-weight:bold;font-size:15px;font-family:Arial,sans-serif;display:inline-block">${txt}</a></td></tr></table></td>`;
   const voornaam = d.voornaam || (naam || "").split(" ")[0] || "";
   const waText = `Dag ${voornaam}, bedankt voor uw aanvraag via smartcooling.be. Wanneer past het u om kort te bellen voor een gratis plaatsbezoek? Mvg, Smart Cooling`;
   return `<tr><td style="padding:16px 28px 2px"><table role="presentation" cellpadding="0" cellspacing="0"><tr>` +
@@ -209,7 +219,9 @@ function nextStep(ctx) {
 
 function leadMailHtml(ctx) {
   const { d, form, naam, mono, s, odoo } = ctx;
-  const typeLabel = mono ? "Aircocheck – monoblock" : form === "aircocheck" ? "Aircocheck – airco met buitenunit" : "Offerteformulier";
+  const isMonoSys = !!mono || /monoblock/i.test(d.systeem || "");
+  const typeLabel = isMonoSys ? "Monoblock" : "Airco met buitenunit";
+  const bronLabel = form === "aircocheck" ? "Aircocheck" : "kort formulier";
   const adres = [d.straat ? [d.straat, d.huisnr].filter(Boolean).join(" ") : "", [d.postcode, d.gemeente].filter(Boolean).join(" ")].filter(Boolean).join(", ");
   const klant = mrows([
     ["Naam", "<b>" + esc(naam || "-") + "</b>", true],
@@ -233,7 +245,10 @@ function leadMailHtml(ctx) {
       ["Controles", esc(d.mono_checks || "").replace(/ \| /g, "<br>"), true],
     ]);
   } else if (form === "aircocheck") {
-    const ruimtes = (d.ruimtes || "").split(" | ").filter(Boolean).map(esc).join("<br>");
+    let rooms = []; try { rooms = JSON.parse(d.ruimtes_json || "[]"); } catch (e) { rooms = []; }
+    const ruimtes = rooms.length
+      ? rooms.map((r, i) => `Ruimte ${i + 1}: <b>${esc(r.type)}</b> · ${esc(r.m2)} · ± ${esc(nl(r.kw))} kW`).join("<br>")
+      : (d.ruimtes || "").split(" | ").filter(Boolean).map(esc).join("<br>");
     const locatie = (d.locatie || "") + (d.locatie === "Bedrijf" ? ` (${[d.bedrijf_type, d.bedrijf_m2 && d.bedrijf_m2 + " m²", d.bedrijf_personen && d.bedrijf_personen + " pers.", d.bedrijf_apparatuur && "apparatuur: " + d.bedrijf_apparatuur].filter(Boolean).join(", ")})` : "");
     aanvraag = mrows([
       ["Systeem", "<b>" + esc(d.systeem || "") + "</b>", true],
@@ -267,15 +282,15 @@ function leadMailHtml(ctx) {
   const odooHtml = ok
     ? `<span style="display:inline-block;background:#E6F4EA;color:#1E7B34;border-radius:14px;padding:5px 14px;font-weight:bold">&#10004; Lead aangemaakt in Odoo</span> &nbsp;<a href="${esc(odoo.url)}" style="color:#1B6FB3;font-weight:bold">Open lead #${odoo.leadId}</a>${odoo.soId ? ` &nbsp;·&nbsp; offerte S${odoo.soId} aangemaakt` : ""}${ctx.pogingen > 1 ? ` <span style="color:#5B6F80">(na ${ctx.pogingen} pogingen)</span>` : ""}`
     : `<span style="display:inline-block;background:#FDECEC;color:#B42318;border-radius:14px;padding:5px 14px;font-weight:bold">&#10008; NIET in Odoo gezet</span> &nbsp;<span style="color:#B42318">Lead handmatig invoeren.</span><br><span style="font-size:12px;color:#5B6F80">${esc((odoo && odoo.error) || "onbekende fout")}</span>`;
-  const temp = s ? s.temp : mono ? "MONOBLOCK" : "";
-  const tempKleur = /HEET/.test(temp) ? "#C0392B" : /WARM/.test(temp) ? "#D68910" : /MONO/.test(temp) ? "#C2691E" : "#1B6FB3";
+  const temp = s ? s.temp : mono ? "HEET" : shortTemp(d);
+  const tempKleur = /HEET/.test(temp) ? "#C0392B" : /WARM/.test(temp) ? "#D68910" : "#1B6FB3";
   return `<!doctype html><html><body style="margin:0;padding:0;background:#EEF3F7">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#EEF3F7"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="620" cellpadding="0" cellspacing="0" style="max-width:620px;width:100%;background:#fff;border-radius:14px;overflow:hidden;font-family:Arial,sans-serif">
 <tr><td style="padding:24px 28px 10px;border-bottom:1px solid #E3EAF0"><img src="${SITE}/assets/logo.png" width="170" alt="Smart Cooling" style="display:block;width:170px;height:auto;border:0"></td></tr>
 <tr><td style="padding:22px 28px 4px"><div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#5B6F80">Nieuwe aanvraag via smartcooling.be</div>
 <div style="font-size:24px;font-weight:bold;color:#0A1622;margin:6px 0 10px">${esc(naam || "Onbekend")}${d.gemeente ? ` <span style="font-weight:normal;color:#5B6F80">· ${esc(d.gemeente)}</span>` : ""}</div>
-<span style="display:inline-block;background:#1B6FB3;color:#fff;border-radius:14px;padding:5px 14px;font-size:13px;font-weight:bold">${esc(typeLabel)}</span>${temp ? ` <span style="display:inline-block;background:${tempKleur};color:#fff;border-radius:14px;padding:5px 14px;font-size:13px;font-weight:bold">${esc(temp)}</span>` : ""}</td></tr>
+<span style="display:inline-block;background:${tempKleur};color:#fff;border-radius:14px;padding:5px 14px;font-size:13px;font-weight:bold">${esc(temp)}</span> <span style="display:inline-block;background:${isMonoSys ? "#C2691E" : "#1B6FB3"};color:#fff;border-radius:14px;padding:5px 14px;font-size:13px;font-weight:bold">${esc(typeLabel)}</span> <span style="font-size:12px;color:#5B6F80">via ${esc(bronLabel)}</span></td></tr>
 ${actionsHtml(d, naam)}
 ${ctx.eerder ? `<tr><td style="padding:12px 28px 0"><div style="background:#FFF4E8;border-left:4px solid #C2691E;border-radius:6px;padding:10px 14px;font-size:14px;color:#0A1622">&#9888; <b>Bekende klant:</b> vroeg al eerder aan op ${esc(ctx.eerder.datum)} &mdash; ${esc(ctx.eerder.naam)}${ctx.eerder.url ? ` (<a href="${esc(ctx.eerder.url)}" style="color:#1B6FB3">lead #${ctx.eerder.id}</a>)` : ""}</div></td></tr>` : ""}
 ${nextStep(ctx) ? `<tr><td style="padding:12px 28px 0"><div style="background:#E8F1FA;border-left:4px solid #1B6FB3;border-radius:6px;padding:10px 14px;font-size:14px;color:#0A1622">&#10148; <b>Volgende stap:</b> ${nextStep(ctx)}</div></td></tr>` : ""}
@@ -293,9 +308,10 @@ async function sendLeadMail(ctx) {
   const key = process.env.BREVO_API_KEY;
   if (!key) { console.warn("BREVO_API_KEY ontbreekt – lead-mail overgeslagen"); return false; }
   const { d, naam, mono, form } = ctx;
-  const type = mono ? "Monoblock" : form === "aircocheck" ? "Aircocheck" : "Offerte";
+  const type = (mono || /monoblock/i.test(d.systeem || "")) ? "Monoblock" : "Airco";
   const ok = ctx.odoo && ctx.odoo.leadId;
-  const prefix = !ok ? "⚠ NIET IN ODOO" : mono ? "🟢 Monoblock" : ctx.s && ctx.s.temp === "HEET" ? "🔥 HEET · " + type : ctx.s && ctx.s.temp === "WARM" ? "🟠 WARM · " + type : "🔵 " + type;
+  const temp = ctx.s ? ctx.s.temp : mono ? "HEET" : shortTemp(d);
+  const prefix = !ok ? "⚠ NIET IN ODOO · " + type : (temp === "HEET" ? "🔥 HEET" : temp === "WARM" ? "🟠 WARM" : "🔵 LAUW") + " · " + type;
   const extra = mono ? eur(mono.totaal_excl) : ctx.s && ctx.s.rooms.length ? ctx.s.rooms.length + (ctx.s.rooms.length === 1 ? " ruimte" : " ruimtes") : "";
   const subject = [prefix, d.naam || naam || "onbekend", d.gemeente, extra, ctx.afstand && ctx.afstand.km != null ? Math.round(ctx.afstand.km) + " km" : ""].filter(Boolean).join(" · ");
   const body = {
