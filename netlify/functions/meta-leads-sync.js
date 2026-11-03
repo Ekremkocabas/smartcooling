@@ -1,4 +1,4 @@
-// netlify/functions/meta-leads-sync.js  (v1, 2/11/2026)
+// netlify/functions/meta-leads-sync.js  (v2, 3/11/2026: NL-veldnamen, naam-fix + herstel bestaande leads)
 // Scheduled function (elke 10 min): haalt nieuwe leads op uit Meta-leadformulieren en verwerkt ze
 // precies zoals een website-aanvraag: lead in Odoo + lead-mail via Brevo (lib/lead.js).
 // Enkel de formulieren in META_FORM_IDS worden gesynchroniseerd (andere Meta-leads blijven zoals ze zijn).
@@ -45,27 +45,69 @@ function fields(lead) {
   for (const f of lead.field_data || []) o[f.name] = (f.values || []).join(", ");
   return o;
 }
-const pick = (o, ...keys) => { for (const k of keys) for (const key of Object.keys(o)) if (key.toLowerCase().includes(k)) return o[key]; return ""; };
+// Veldnamen kunnen Engels (full_name, email, ...) of Nederlands (volledige_naam, e-mailadres, ...) zijn.
+// Eerst exacte namen, dan "bevat" met uitsluitingen (bv. "straatnaam" bevat "naam" maar is geen naam).
+const norm = (k) => k.toLowerCase().replace(/[^a-z0-9]/g, "");
+function pick(o, exact, contains = [], exclude = []) {
+  const keys = Object.keys(o);
+  for (const e of exact) { const k = keys.find((x) => norm(x) === norm(e)); if (k && o[k]) return o[k]; }
+  for (const c of contains) {
+    const k = keys.find((x) => norm(x).includes(norm(c)) && !exclude.some((ex) => norm(x).includes(norm(ex))));
+    if (k && o[k]) return o[k];
+  }
+  return "";
+}
+const FIELDS = {
+  first: [["first_name", "voornaam"], []],
+  last: [["last_name", "achternaam", "familienaam"], []],
+  full: [["full_name", "volledige_naam", "naam", "name"], ["volledigenaam", "fullname"], ["straat", "street", "bedrijf", "company"]],
+  email: [["email", "e-mailadres", "emailadres"], ["mail"]],
+  phone: [["phone_number", "phone", "telefoonnummer", "telefoon", "gsm"], ["phone", "telefoon", "gsm"]],
+  street: [["street_address", "straat_en_nummer", "straatnaam_en_nummer", "adres"], ["street", "straat"], ["mail"]],
+  zip: [["post_code", "postcode", "zip_code", "zip"], ["post", "zip"]],
+  city: [["city", "plaats", "gemeente", "woonplaats", "stad"], ["city", "plaats", "gemeente", "stad"]],
+};
+const get = (f, n) => pick(f, ...FIELDS[n]);
+const USED = /first_?name|last_?name|full_?name|volledige_?naam|voornaam|achternaam|mail|phone|telefoon|gsm|post|zip|city|plaats|stad|gemeente|street|straat|adres/i;
 
 function toPayload(lead, formName) {
   const f = fields(lead);
-  const voornaam = pick(f, "first_name", "voornaam") || (pick(f, "full_name", "naam").split(" ")[0] || "");
-  const achternaam = pick(f, "last_name", "achternaam") || pick(f, "full_name").split(" ").slice(1).join(" ");
-  const extra = Object.entries(f)
-    .filter(([k]) => !/first_name|last_name|full_name|email|phone|post|zip|city|stad|gemeente|street|straat/i.test(k))
+  const full = get(f, "full");
+  const voornaam = get(f, "first") || (full.split(" ")[0] || "");
+  const achternaam = get(f, "last") || full.split(" ").slice(1).join(" ");
+  const extra = Object.entries(f).filter(([k]) => !USED.test(k))
     .map(([k, v]) => `${k.replace(/_/g, " ")}: ${v}`).join("\n");
-  const titel = (formName.split("|").map((s) => s.trim()).filter(Boolean)[2] || "Meta-advertentie");
+  const titel = (formName.split("|").map((s) => s.trim()).filter(Boolean)[2] || "Meta-advertentie").replace(/Mitubishi/i, "Mitsubishi");
+  const naamVol = [voornaam, achternaam].filter(Boolean).join(" ");
   return {
     form_name: "offerte",
     data: {
       voornaam, naam: achternaam,
-      email: pick(f, "email"), telefoon: pick(f, "phone", "telefoon", "gsm"),
-      straat: pick(f, "street", "straat"), postcode: pick(f, "zip", "post"), gemeente: pick(f, "city", "gemeente", "stad"),
+      email: get(f, "email"), telefoon: get(f, "phone"),
+      straat: get(f, "street"), postcode: get(f, "zip"), gemeente: get(f, "city"),
       systeem: titel, bericht: extra + `\n\nFormulier: ${formName}\nAdvertentie: ${lead.ad_name || "-"}\nCampagne: ${lead.campaign_name || "-"}\nMeta lead-ID: ${lead.id}`,
       bron_pagina: `Meta-advertentie – ${titel} – ${lead.ad_name || ""}`.trim(),
-      lead_titel: `Meta ${titel} - ${[voornaam, achternaam].filter(Boolean).join(" ") || "onbekend"}`,
+      lead_titel: `Meta ${titel} - ${naamVol || "onbekend"}${get(f, "city") ? " (" + get(f, "city") + ")" : ""}`,
+      naam_vol: naamVol,
     },
   };
+}
+
+// Herstel van leads die vóór v2 met een verkeerde naam (bv. straatnaam) in Odoo kwamen.
+async function repairLead(call, metaId, p) {
+  const ids = await call("crm.lead", "search", [[["description", "ilike", "Meta lead-ID: " + metaId], ["active", "in", [true, false]]]], { limit: 1 });
+  if (!ids.length) return false;
+  const [cur] = await call("crm.lead", "read", [ids], { fields: ["name", "contact_name"] });
+  if (cur && cur.name === p.data.lead_titel) return false;
+  const vals = { name: p.data.lead_titel, contact_name: p.data.naam_vol || false };
+  if (p.data.email) vals.email_from = p.data.email;
+  if (p.data.telefoon) vals.phone = p.data.telefoon;
+  if (p.data.straat) vals.street = p.data.straat;
+  if (p.data.postcode) vals.zip = p.data.postcode;
+  if (p.data.gemeente) vals.city = p.data.gemeente;
+  await call("crm.lead", "write", [ids, vals]);
+  console.log("lead hersteld:", ids[0]);
+  return true;
 }
 
 exports.handler = async () => {
@@ -88,8 +130,8 @@ exports.handler = async () => {
       if (page.error) throw new Error("Meta: " + page.error.message);
       for (const lead of page.data || []) {
         try {
-          if (await odooHasLead(call, lead.id)) { overgeslagen++; continue; }
           const payload = toPayload(lead, form.name || formId);
+          if (await odooHasLead(call, lead.id)) { await repairLead(call, lead.id, payload).catch((e) => console.warn("herstel mislukt:", e.message)); overgeslagen++; continue; }
           const out = await processLead(payload, { attempts: 1, odooTimeout: 12000 });
           // titel in Odoo: "Meta Mitsubishi MSZ-HR - naam" i.p.v. "Website aanvraag - naam"
           const leadId = out && out.odoo && out.odoo.leadId;
