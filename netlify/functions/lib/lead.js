@@ -221,7 +221,7 @@ function leadMailHtml(ctx) {
   const { d, form, naam, mono, s, odoo } = ctx;
   const isMonoSys = !!mono || /monoblock/i.test(d.systeem || "");
   const typeLabel = isMonoSys ? "Monoblock" : "Airco met buitenunit";
-  const bronLabel = form === "aircocheck" ? "Aircocheck" : "kort formulier";
+  const bronLabel = form === "aircocheck" ? "Aircocheck" : form === "kras" ? "Kraskaart-actie" : "kort formulier";
   const adres = [d.straat ? [d.straat, d.huisnr].filter(Boolean).join(" ") : "", [d.postcode, d.gemeente].filter(Boolean).join(" ")].filter(Boolean).join(", ");
   const klant = mrows([
     ["Naam", "<b>" + esc(naam || "-") + "</b>", true],
@@ -243,6 +243,15 @@ function leadMailHtml(ctx) {
       ["Richtprijs getoond", `<span style="font-size:20px;color:#C2691E;font-weight:bold">${eur(mono.totaal_excl)}</span> excl. btw`, true],
       ["Extra's", d.mono_extras],
       ["Controles", esc(d.mono_checks || "").replace(/ \| /g, "<br>"), true],
+    ]);
+  } else if (form === "kras") {
+    aanvraag = mrows([
+      ["Kraskaart", `<span style="font-size:20px;color:#C2691E;font-weight:bold">€ ${esc(d.korting || "?")} extra korting</span>`, true],
+      ["Code", "<b>" + esc(d.code || "") + "</b>", true],
+      ["Geldig tot", d.geldig_tot],
+      ["Deelnemer nr.", d.nummer],
+      ["Interesse", d.interesse],
+      ["Wanneer", d.wanneer],
     ]);
   } else if (form === "aircocheck") {
     let rooms = []; try { rooms = JSON.parse(d.ruimtes_json || "[]"); } catch (e) { rooms = []; }
@@ -312,7 +321,7 @@ async function sendLeadMail(ctx) {
   const ok = ctx.odoo && ctx.odoo.leadId;
   const temp = ctx.s ? ctx.s.temp : mono ? "HEET" : shortTemp(d);
   const prefix = !ok ? "⚠ NIET IN ODOO · " + type : (temp === "HEET" ? "🔥 HEET" : temp === "WARM" ? "🟠 WARM" : "🔵 LAUW") + " · " + type;
-  const extra = mono ? eur(mono.totaal_excl) : ctx.s && ctx.s.rooms.length ? ctx.s.rooms.length + (ctx.s.rooms.length === 1 ? " ruimte" : " ruimtes") : "";
+  const extra = form === "kras" ? "🎟 Kraskaart € " + (d.korting || "?") + " · " + (d.code || "") : mono ? eur(mono.totaal_excl) : ctx.s && ctx.s.rooms.length ? ctx.s.rooms.length + (ctx.s.rooms.length === 1 ? " ruimte" : " ruimtes") : "";
   const subject = [prefix, d.naam || naam || "onbekend", d.gemeente, extra, ctx.afstand && ctx.afstand.km != null ? Math.round(ctx.afstand.km) + " km" : ""].filter(Boolean).join(" · ");
   const body = {
     sender: { name: "Smart Cooling website", email: MAIL_FROM() },
@@ -414,7 +423,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function processLead(payload, opts) {
   opts = Object.assign({ attempts: 3, odooTimeout: 40000, waitMs: [20000, 40000] }, opts || {});
   const form = payload.form_name || "offerte";
-  if (!["offerte", "aircocheck"].includes(form)) return { ignored: true };
+  if (!["offerte", "aircocheck", "kras"].includes(form)) return { ignored: true };
   const d = payload.data || {};
   let ctx = null;
   try {
@@ -469,6 +478,22 @@ async function processLead(payload, opts) {
         street: d.straat || "", zip: d.postcode || "", city: d.gemeente || "",
         description, priority: s.priority, expected_revenue: bandMid(s.band),
         x_studio_is_monoblock: isMono, team_id: isMono ? TEAM_MONOBLOCK : TEAM_SALES,
+        stage_id: STAGE_NIEUW, source_id: WEBSITE_SOURCE_ID,
+      };
+      extra = {};
+    } else if (form === "kras") {
+      // Kraskaart-actie (/kras/): korting + unieke code, toegekend door kras-claim.js
+      const description =
+        `<p style="font-size:15px;margin:0 0 6px"><b>KRASKAART-ACTIE via smartcooling.be</b> &nbsp; <span style="background:#C9A227;color:#0A1622;border-radius:10px;padding:2px 10px;font-weight:700">€ ${ed(d.korting)} KORTING</span></p>` +
+        block("Kraskaart", [row("Gewonnen korting", "<b>€ " + ed(d.korting) + " extra korting</b> (op offerte, niet cumuleerbaar)"), row("Code", "<b style=\"font-size:16px\">" + ed(d.code) + "</b>"), row("Geldig tot", ed(d.geldig_tot)), row("Deelnemer nr.", ed(d.nummer))]) +
+        block("Klant", [row("Naam", ed(naam)), row("Gemeente", ed([d.postcode, d.gemeente].filter(Boolean).join(" "))), row("GSM", ed(d.gsm)), row("E-mail", ed(d.email))]) +
+        block("Interesse", [row("Wat zoekt de klant", ed(d.interesse)), row("Wanneer", ed(d.wanneer))]) +
+        block("Herkomst", [row("Bronpagina", ed(d.bron_pagina)), row("UTM", ed(d.utm))]);
+      vals = {
+        name: `Kraskaart €${d.korting || "?"} - ${naam || "onbekend"} - ${d.gemeente || ""}`.replace(/ - $/, ""),
+        type: "opportunity", contact_name: naam, phone: d.gsm || "", email_from: d.email || "",
+        zip: d.postcode || "", city: d.gemeente || "",
+        description, x_studio_is_monoblock: isMono, team_id: TEAM_SALES,
         stage_id: STAGE_NIEUW, source_id: WEBSITE_SOURCE_ID,
       };
       extra = {};
