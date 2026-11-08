@@ -1,0 +1,8 @@
+{
+  "name": "smartcooling-site",
+  "private": true,
+  "description": "Statische site + Netlify Functions (smartcooling.be)",
+  "dependencies": {
+    "@netlify/blobs": "^8.2.0"
+  }
+}
