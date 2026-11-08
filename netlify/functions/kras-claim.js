@@ -1,9 +1,7 @@
 // netlify/functions/kras-claim.js  (v1, 8/11/2026)
-// Kraskaart-actie (/kras/). De korting wordt HIER op de server bepaald, nooit in de browser:
-//   aanvraag 1–50   : altijd € 50
-//   aanvraag 51–100 : per reeks van 4  -> 3× € 50, 1× € 75            (volgorde per reeks geschud)
-//   aanvraag 101–150: per reeks van 5  -> 3× € 50, 1× € 75, 1× € 100
-//   aanvraag 151+   : per reeks van 6  -> 3× € 50, 1× € 75, 1× € 100, 1× € 150
+// Kraskaart-actie (/kras/). De korting wordt HIER op de server bepaald, nooit in de browser.
+// Schema (Ekrem, 8/11): per reeks van 11 deelnemers -> 5× € 50, 3× € 75, 1× € 100, 1× € 125, 1× € 150,
+// volgorde per reeks geschud (niet voorspelbaar). Gemiddeld ± € 77 per deelnemer.
 // Enkel geldige, unieke deelnemers tellen (1 per e-mail én 1 per gsm). Wie opnieuw deelneemt,
 // krijgt zijn bestaande code terug. Lead -> Odoo + lead-mail (via lead-process-background),
 // klant krijgt zijn code per mail (Brevo).
@@ -26,14 +24,10 @@ function seededShuffle(arr, seed) {
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
   return a;
 }
+const REEKS = [50, 50, 50, 50, 50, 75, 75, 75, 100, 125, 150];
 function amountFor(n) {
-  if (n <= 50) return 50;
-  let start, cyc;
-  if (n <= 100) { start = 51; cyc = [50, 50, 50, 75]; }
-  else if (n <= 150) { start = 101; cyc = [50, 50, 50, 75, 100]; }
-  else { start = 151; cyc = [50, 50, 50, 75, 100, 150]; }
-  const i = n - start, k = Math.floor(i / cyc.length);
-  return seededShuffle(cyc, start + ":" + k)[i % cyc.length];
+  const i = n - 1, k = Math.floor(i / REEKS.length);
+  return seededShuffle(REEKS, "r11:" + k)[i % REEKS.length];
 }
 
 // ---- Validatie ----
