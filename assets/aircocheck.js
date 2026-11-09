@@ -1,9 +1,10 @@
-/* Smart Cooling Aircocheck v10 — wensen max. 3 + prioriteit + verwarming; split: geen merken/prijzen naar de klant; monoblock: richtprijs excl. btw */
+/* Smart Cooling Aircocheck v11 — kraskaart (?kras=token): direct airco met buitenunit + banner; v10: wensen max. 3 + prioriteit + verwarming; split: geen merken/prijzen naar de klant; monoblock: richtprijs excl. btw */
 (function () {
   "use strict";
   var KEY = "sc_aircocheck_v2";
   var root = document.getElementById("ac");
   if (!root) return;
+  (function () { var st = document.createElement("style"); st.textContent = ".ackras{background:#FFF8E1;border:2px dashed #C9A227;border-radius:14px;padding:12px 14px;margin:0 0 14px;font-size:15px;line-height:1.45;color:#0A1622}.ackras small{display:block;margin-top:4px;font-size:12px;color:#5B6F80}.ackraswin{background:#FFF8E1;border:3px dashed #C9A227;border-radius:16px;text-align:center;padding:18px 14px;margin:0 0 18px}.ackraswin span{display:inline-block;background:#0A1622;color:#F3C845;font-weight:700;font-size:12px;letter-spacing:2px;border-radius:999px;padding:5px 12px}.ackraswin b{display:block;font-size:52px;line-height:1.1;margin:8px 0 2px;color:#0A1622}.ackraswin em{display:block;font-style:normal;font-weight:700;color:#1E8FC6;font-size:17px}.ackraswin small{display:block;color:#5B6F80;font-size:13px;margin:8px 0 12px}"; document.head.appendChild(st); })();
   var PC = window.SC_PC || {};
   var T0 = Date.now();
 
@@ -26,10 +27,17 @@
 
   var FLOW = {
     split: ["sys", "waar", "ruimtes", "wens", "contact", "klaar"],
+    splitKras: ["waar", "ruimtes", "wens", "contact", "klaar"],   // via /kras/: enkel airco met buitenunit
     mono: ["sys", "m1", "m2", "m3", "m4", "m5", "contact", "klaar"],
     monoDirect: ["m1", "m2", "m3", "m4", "m5", "contact", "klaar"]   // via /aircocheck/?sys=mono (monoblock-pagina): systeemvraag overslaan
   };
   var DIRECT_MONO = /[?&]sys=mono\b/.test(location.search);
+  // Kraskaart: token uit ?kras= of uit /kras/ (localStorage). Enkel tonen; de server controleert.
+  var KRAS = (function () {
+    var tok = null; try { tok = new URLSearchParams(location.search).get("kras") || localStorage.getItem("sc_kras_token"); } catch (e) {}
+    if (!tok || tok.indexOf(".") < 0) return null;
+    try { var p = tok.split(".")[0].replace(/-/g, "+").replace(/_/g, "/"); var o = JSON.parse(atob(p + "===".slice((p.length + 3) % 4))); if (!o || !o.a || !(o.exp > Date.now())) return null; try { localStorage.setItem("sc_kras_token", tok); } catch (e) {} return { a: o.a, token: tok }; } catch (e) { return null; }
+  })();
   var NAMES = { sys: "Systeem", waar: "Waar", ruimtes: "Ruimtes", wens: "Wensen", contact: "Contact", klaar: "Resultaat", m1: "Aantal", m2: "Gevelmuur", m3: "Controles", m4: "Bijzonderheden", m5: "Richtprijs" };
 
   function blankRoom() { return { type: "", m2: "", ori: "", glas: "", iso: "" }; }
@@ -47,10 +55,12 @@
   } catch (e) {}
   if (DIRECT_MONO && !(restored && S.systeem === MONO)) { S = { step: 1, systeem: MONO, locatie: "", bedrijf: { type: "", m2: "", pers: "", app: "" }, n: "", rooms: [], buiten: "", wensen: [], prio: "", verw: "", dagdeel: "", mono: blankMono(), c: { voornaam: "", naam: "", gsm: "", email: "", straat: "", postcode: "", gemeente: "" }, sent: false, t0: T0, direct: true }; restored = false; }
   else if (DIRECT_MONO) S.direct = true;
+  if (KRAS && !DIRECT_MONO && !(restored && S.kras)) { S = { step: 1, systeem: SPLIT, locatie: "", bedrijf: { type: "", m2: "", pers: "", app: "" }, n: "", rooms: [], buiten: "", wensen: [], prio: "", verw: "", dagdeel: "", mono: blankMono(), c: { voornaam: "", naam: "", gsm: "", email: "", straat: "", postcode: "", gemeente: "" }, sent: false, t0: T0, kras: true }; restored = false; }
+  if (KRAS && !DIRECT_MONO) { S.kras = true; S.systeem = SPLIT; }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
   function clearSave() { try { localStorage.removeItem(KEY); } catch (e) {} }
 
-  function flow() { return S.systeem === MONO ? (S.direct ? FLOW.monoDirect : FLOW.mono) : FLOW.split; }
+  function flow() { return S.systeem === MONO ? (S.direct ? FLOW.monoDirect : FLOW.mono) : (S.kras ? FLOW.splitKras : FLOW.split); }
   function cur() { return flow()[S.step - 1]; }
   function isMono() { return S.systeem === MONO; }
 
@@ -282,7 +292,8 @@
   function vKlaar() {
     if (isMono()) {
       var L = monoLines();
-      return '<div class="acdone"><h2>Bedankt, ' + esc(S.c.voornaam) + '!</h2>' +
+      var krasBlok = (S.kras && KRAS) ? '<div class="ackraswin"><span>KRASKAART · ACTIE NOV &amp; DEC</span><b>€ ' + KRAS.a + '</b><em>extra korting is vastgelegd</em><small>U hoeft niets te bewaren: de korting staat bij uw aanvraag en wordt verrekend in uw offerte volgens de <a href="/kras/#voorwaarden" target="_blank" rel="noopener">voorwaarden</a>.</small><a class="btn p" href="https://www.instagram.com/smartcooling.be/" target="_blank" rel="noopener">Volg ons op Instagram</a></div>' : "";
+    return '<div class="acdone">' + krasBlok + '<h2>Bedankt, ' + esc(S.c.voornaam) + '!</h2>' +
         '<p class="lead">Uw offerte voor ' + L.act.length + " monoblock" + (L.act.length > 1 ? "s" : "") + " (richtprijs <b>" + eur(L.tot) + "</b> excl. btw) komt nu in uw mailbox.</p>" +
         '<h3>Zo gaat het verder</h3><ul class="acnext"><li><b>Uw aanvraag is goed ontvangen.</b> U ontvangt uw offerte per e-mail.</li><li><b>Wij bellen u binnen 1 werkdag</b> om het gratis plaatsbezoek in te plannen (' + esc(S.dagdeel.toLowerCase()) + ').</li><li><b>Stuur ons ondertussen een paar foto\'s</b>: de muur binnen waar het toestel komt en dezelfde muur langs buiten. Via WhatsApp of als antwoord op onze mail.</li><li><b>Wij bevestigen uw prijs</b> na het plaatsbezoek. Meestal binnen 1 week geplaatst.</li></ul>' +
         '<p><a href="https://wa.me/32470961121" class="btn p" target="_blank" rel="noopener">Foto\'s sturen via WhatsApp</a></p>' +
@@ -331,6 +342,7 @@
     var hideNext = (k === "m2" || k === "m3") && !active().length && excluded().length > 0;
     root.innerHTML =
       (restored && !last ? '<p class="acresume">Welkom terug, u gaat verder waar u was. <button type="button" data-reset="1">Opnieuw beginnen</button></p>' : "") +
+      (S.kras && KRAS && !last ? '<div class="ackras"><b>🎟 Uw € ' + KRAS.a + ' extra korting ligt klaar.</b> Nog even uw Aircocheck invullen, dan is ze vastgelegd.<small>Enkel airco met buitenunit · korting volgens offertebedrag · <a href="/kras/#voorwaarden" target="_blank" rel="noopener">voorwaarden</a></small></div>' : "") +
       '<div class="acprog" aria-hidden="true"><i style="width:' + pct + '%"></i></div>' +
       '<p class="acstep">Stap ' + n + " van " + N + " · " + NAMES[k] + "</p>" +
       '<div class="acbody">' + view + "</div>" +
@@ -397,7 +409,8 @@
       landingspagina: (function () { try { return sessionStorage.getItem("sc_land") || location.pathname; } catch (e) { return location.pathname; } })(),
       apparaat: mob ? "mobiel" : "desktop",
       duur_sec: String(Math.round((Date.now() - (S.t0 || T0)) / 1000)),
-      mono_json: "", mono_prijs: "", mono_extras: "", mono_checks: ""
+      mono_json: "", mono_prijs: "", mono_extras: "", mono_checks: "",
+      kras_token: (S.kras && KRAS) ? KRAS.token : ""
     };
     if (isMono()) {
       var m = M(), L = monoLines(), ex = excluded();
@@ -425,7 +438,7 @@
     var btn = root.querySelector("[data-next]"); if (btn) { btn.setAttribute("aria-disabled", "true"); btn.textContent = "Bezig met verzenden…"; }
     var body = new URLSearchParams(payload()).toString();
     fetch("/", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: body })
-      .then(function (r) { if (!r.ok) throw new Error(r.status); S.sent = true; try { if (window.scTrack) window.scTrack("Lead", { content_name: isMono() ? "aircocheck_monoblock" : "aircocheck_split" }); } catch (e) {} S.step = flow().length; clearSave(); render(); track(S.step); window.scrollTo(0, root.offsetTop - 90); })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); S.sent = true; try { localStorage.removeItem("sc_kras_token"); } catch (e) {} try { if (window.scTrack) window.scTrack("Lead", { content_name: isMono() ? "aircocheck_monoblock" : "aircocheck_split" }); } catch (e) {} S.step = flow().length; clearSave(); render(); track(S.step); window.scrollTo(0, root.offsetTop - 90); })
       .catch(function () {
         var e = document.getElementById("acsenderr");
         if (e) e.innerHTML = 'Verzenden lukte niet. Probeer opnieuw, of <a href="' + (window.SC_WA || "#") + '" target="_blank" rel="noopener">stuur ons een WhatsApp</a>.';
