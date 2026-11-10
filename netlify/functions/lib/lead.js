@@ -281,7 +281,7 @@ function leadMailHtml(ctx) {
     const ruimte = Array.isArray(d.ruimte) ? d.ruimte.join(", ") : (d.ruimte || "");
     aanvraag = mrows([
       ["Type", "<b>" + esc(d.systeem || "") + "</b>", true],
-      ["Aantal airco('s)", d.aantal], ["Type ruimte", ruimte], ["Gewenste plaatsing", d.plaatsingsdatum],
+      ["Aantal airco('s)", d.aantal], ["Grootte per ruimte", esc(d.ruimtes_m2 || "").replace(/\n/g, "<br>"), true], ["Type ruimte", ruimte], ["Gewenste plaatsing", d.plaatsingsdatum],
       ["Bericht", esc(d.bericht || "").replace(/\n/g, "<br>"), true],
     ]);
   }
@@ -557,7 +557,7 @@ async function processLead(payload, opts) {
         phone: d.telefoon || "", email_from: d.email || "", street: straat, zip: d.postcode || "", city: d.gemeente || "",
         description: `<p style="font-size:15px;margin:0 0 6px"><b>AANVRAAG via smartcooling.be</b></p>` +
           block("Klant", [row("Naam", ed(naam)), row("Adres", ed([straat, d.postcode, d.gemeente].filter(Boolean).join(", "))), row("Telefoon", ed(d.telefoon)), row("E-mail", ed(d.email)), row("Gewenst belmoment", "<b>" + ed(d.belmoment) + "</b>")]) +
-          block("Aanvraag", [row("Type", "<b>" + ed(d.systeem) + "</b>"), row("Aantal airco('s)", ed(d.aantal)), row("Type ruimte", ed(ruimte)), row("Gewenste plaatsing", ed(d.plaatsingsdatum)), row("Bericht", ed(d.bericht).replace(/\n/g, "<br>"))]) +
+          block("Aanvraag", [row("Type", "<b>" + ed(d.systeem) + "</b>"), row("Aantal airco('s)", ed(d.aantal)), ...(d.ruimtes_m2 ? [row("Grootte per ruimte", ed(d.ruimtes_m2).replace(/\n/g, "<br>"))] : []), row("Type ruimte", ed(ruimte)), row("Gewenste plaatsing", ed(d.plaatsingsdatum)), row("Bericht", ed(d.bericht).replace(/\n/g, "<br>"))]) +
           block("Herkomst", [row("Bronpagina", ed(d.bron_pagina))]),
         x_studio_is_monoblock: isMono, team_id: isMono ? TEAM_MONOBLOCK : TEAM_SALES,
         stage_id: STAGE_NIEUW, source_id: WEBSITE_SOURCE_ID,
