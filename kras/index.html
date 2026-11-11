@@ -55,6 +55,7 @@ input:focus,select:focus{outline:none;border-color:var(--ice)}
 .ghost{border:1.5px solid #CBD6E0;color:var(--ink)!important}
 .claim{background:#F3C845;color:#0A1622!important;font-family:var(--fd);font-size:1.08rem;padding:16px}
 .mini{font-size:.8rem;color:var(--slate);margin:10px 0 0}
+.tiers{background:var(--frost);border-radius:12px;padding:12px 14px;margin:14px 0 0;text-align:left;font-size:.9rem}.tiers .tr{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #D6E4EE;padding:5px 0}.tiers .tr span{color:var(--slate)}.tiers p{margin:8px 0 0;font-size:.85rem}
 .vw ol{padding-left:18px;margin:6px 0 0}.vw li{margin:0 0 4px}
 .usp{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:22px 0 0;text-align:center;font-size:.85rem;color:rgba(255,255,255,.85)}
 .usp b{display:block;color:#fff;font-size:1rem}
@@ -85,7 +86,13 @@ input:focus,select:focus{outline:none;border-color:var(--ice)}
         <a class="btn2 claim" id="claim" href="/aircocheck/">Claim uw <span id="amt3"></span>: start de Aircocheck →</a>
         <a class="btn2 ig" href="https://www.instagram.com/smartcooling.be/" target="_blank" rel="noopener" id="igb">📸 Volg ons op Instagram</a>
       </div>
-      <p class="mini">Enkel voor airco met buitenunit (niet voor monoblock). Korting volgens offertebedrag, zie <a href="#voorwaarden">voorwaarden</a>.</p>
+      <div class="tiers"><b>Zo krijgt u uw <span class="amtx"></span>:</b>
+        <div class="tr"><span>Offerte boven € 2.000</span><b>volledig als korting</b></div>
+        <div class="tr"><span>t/m € 2.000</span><b>€ 100 korting</b></div>
+        <div class="tr"><span>t/m € 1.750</span><b>€ 75 korting</b></div>
+        <div class="tr"><span>t/m € 1.500</span><b>€ 50 korting</b></div>
+        <p>Het verschil krijgt u als <b>tegoed op uw eerste jaarlijkse onderhoud</b>. U verliest dus niets.</p></div>
+      <p class="mini">Enkel voor airco met buitenunit (niet voor monoblock). Bedragen excl. btw, vóór korting. Zie <a href="#voorwaarden">voorwaarden</a>.</p>
     </div>
   </div>
 
@@ -99,7 +106,7 @@ input:focus,select:focus{outline:none;border-color:var(--ice)}
       <li><b>Enkel airco met buitenunit</b> (single split of multisplit). De actie geldt niet voor monoblock (airco zonder buitenunit).</li>
       <li><b>Hoe:</b> kras de kaart, vul daarna de gratis Aircocheck volledig in met correcte gegevens. Pas dan is de korting vastgelegd.</li>
       <li><b>Bedragen:</b> elke deelnemer wint een korting. Per reeks van 11 deelnemers: 5× € 50, 3× € 75, 1× € 100, 1× € 125 en 1× € 150, in willekeurige volgorde.</li>
-      <li><b>Toepassing volgens offertebedrag</b> (levering en plaatsing door Smart Cooling, excl. btw, vóór korting): t/m € 1.500: max. € 50 · € 1.500,01 – € 1.750: max. € 75 · € 1.750,01 – € 2.000: max. € 100 · boven € 2.000: de volledige gewonnen korting (€ 125 of € 150). U krijgt nooit meer dan het gewonnen bedrag.</li>
+      <li><b>Toepassing volgens offertebedrag</b> (levering en plaatsing door Smart Cooling, excl. btw, vóór korting): boven € 2.000 krijgt u de volledige gewonnen korting. Bij een lagere offerte krijgt u nu: t/m € 1.500 € 50 · € 1.500,01 – € 1.750 € 75 · € 1.750,01 – € 2.000 € 100 (nooit meer dan het gewonnen bedrag). <b>Het verschil</b> tussen het gewonnen en het toegepaste bedrag krijgt u als <b>tegoed op uw eerste jaarlijkse onderhoud</b> door Smart Cooling, geldig t/m 31/12/2027, enkel voor het geplaatste toestel, niet inwisselbaar voor geld en niet overdraagbaar.</li>
       <li><b>Geldigheid:</b> voor offertes aangevraagd t/m 31/12/2026. De korting wordt vermeld op uw offerte en verrekend op de factuur.</li>
       <li>1 korting per persoon, e-mailadres, gsm-nummer en installatieadres. Niet cumuleerbaar met andere acties of kortingen, niet inwisselbaar voor geld, niet overdraagbaar.</li>
       <li>Bij misbruik, meervoudige deelname of onjuiste gegevens vervalt de korting. Kennelijke fouten binden de organisator niet.</li>
@@ -115,7 +122,7 @@ input:focus,select:focus{outline:none;border-color:var(--ice)}
   var old=null;try{old=localStorage.getItem("sc_kras_token")}catch(e){}
   function load(){return fetch("/.netlify/functions/kras-reveal",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:old||""})})
     .then(function(r){return r.json()}).then(function(j){if(!j.ok)throw new Error(j.error||"fout");A=j.korting;TOK=j.token;try{localStorage.setItem("sc_kras_token",TOK)}catch(e){}
-      document.getElementById("amt").textContent="€ "+A;document.getElementById("amt2").textContent="€ "+A;document.getElementById("amt3").textContent="€ "+A;
+      document.getElementById("amt").textContent="€ "+A;document.getElementById("amt2").textContent="€ "+A;document.getElementById("amt3").textContent="€ "+A;[].forEach.call(document.querySelectorAll(".amtx"),function(e){e.textContent="€ "+A});
       document.getElementById("claim").href="/aircocheck/?kras="+encodeURIComponent(TOK)+utm();})
     .catch(function(e){err.textContent=(e&&e.message&&e.message!=="fout")?e.message:"Even geen verbinding. Herlaad de pagina.";});}
   var P=load();
