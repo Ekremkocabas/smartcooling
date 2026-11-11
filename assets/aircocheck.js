@@ -292,7 +292,7 @@
   function vKlaar() {
     if (isMono()) {
       var L = monoLines();
-      var krasBlok = (S.kras && KRAS) ? '<div class="ackraswin"><span>KRASKAART · ACTIE NOV &amp; DEC</span><b>€ ' + KRAS.a + '</b><em>extra korting is vastgelegd</em><small>U hoeft niets te bewaren: de korting staat bij uw aanvraag en wordt verrekend in uw offerte volgens de <a href="/kras/#voorwaarden" target="_blank" rel="noopener">voorwaarden</a>.</small><a class="btn p" href="https://www.instagram.com/smartcooling.be/" target="_blank" rel="noopener">Volg ons op Instagram</a></div>' : "";
+      var krasBlok = (S.kras && KRAS) ? '<div class="ackraswin"><span>KRASKAART · ACTIE NOV &amp; DEC</span><b>€ ' + KRAS.a + '</b><em>extra korting is vastgelegd</em><small>U hoeft niets te bewaren: de korting staat bij uw aanvraag en wordt verrekend in uw offerte (volledig bij een offerte boven € 2.000; anders deels korting en de rest als tegoed op uw eerste onderhoud), volgens de <a href="/kras/#voorwaarden" target="_blank" rel="noopener">voorwaarden</a>.</small><a class="btn p" href="https://www.instagram.com/smartcooling.be/" target="_blank" rel="noopener">Volg ons op Instagram</a></div>' : "";
     return '<div class="acdone">' + krasBlok + '<h2>Bedankt, ' + esc(S.c.voornaam) + '!</h2>' +
         '<p class="lead">Uw offerte voor ' + L.act.length + " monoblock" + (L.act.length > 1 ? "s" : "") + " (richtprijs <b>" + eur(L.tot) + "</b> excl. btw) komt nu in uw mailbox.</p>" +
         '<h3>Zo gaat het verder</h3><ul class="acnext"><li><b>Uw aanvraag is goed ontvangen.</b> U ontvangt uw offerte per e-mail.</li><li><b>Wij bellen u binnen 1 werkdag</b> om het gratis plaatsbezoek in te plannen (' + esc(S.dagdeel.toLowerCase()) + ').</li><li><b>Stuur ons ondertussen een paar foto\'s</b>: de muur binnen waar het toestel komt en dezelfde muur langs buiten. Via WhatsApp of als antwoord op onze mail.</li><li><b>Wij bevestigen uw prijs</b> na het plaatsbezoek. Meestal binnen 1 week geplaatst.</li></ul>' +
@@ -342,7 +342,7 @@
     var hideNext = (k === "m2" || k === "m3") && !active().length && excluded().length > 0;
     root.innerHTML =
       (restored && !last ? '<p class="acresume">Welkom terug, u gaat verder waar u was. <button type="button" data-reset="1">Opnieuw beginnen</button></p>' : "") +
-      (S.kras && KRAS && !last ? '<div class="ackras"><b>🎟 Uw € ' + KRAS.a + ' extra korting ligt klaar.</b> Nog even uw Aircocheck invullen, dan is ze vastgelegd.<small>Enkel airco met buitenunit · korting volgens offertebedrag · <a href="/kras/#voorwaarden" target="_blank" rel="noopener">voorwaarden</a></small></div>' : "") +
+      (S.kras && KRAS && !last ? '<div class="ackras"><b>🎟 Uw € ' + KRAS.a + ' extra korting ligt klaar.</b> Nog even uw Aircocheck invullen, dan is ze vastgelegd.<small>Enkel airco met buitenunit · volledig bij offerte boven € 2.000, anders deels korting + rest als onderhoudstegoed · <a href="/kras/#voorwaarden" target="_blank" rel="noopener">voorwaarden</a></small></div>' : "") +
       '<div class="acprog" aria-hidden="true"><i style="width:' + pct + '%"></i></div>' +
       '<p class="acstep">Stap ' + n + " van " + N + " · " + NAMES[k] + "</p>" +
       '<div class="acbody">' + view + "</div>" +
