@@ -3,7 +3,7 @@
 const crypto = require("crypto");
 const { processLead } = require("./lib/lead.js");
 const { getStore, connectLambda } = require("@netlify/blobs");
-function krasStore(event) { try { connectLambda(event); return getStore({ name: "kras", consistency: "strong" }); } catch (e) { console.warn("kras-opslag niet beschikbaar:", e.message); return null; } }
+function krasStore(event) { try { connectLambda(event); return getStore("kras"); } catch (e) { console.warn("kras-opslag niet beschikbaar:", e.message); return null; } }
 const token = () => crypto.createHash("sha256").update("lead:" + (process.env.ODOO_API_KEY || "")).digest("hex");
 
 exports.handler = async (event) => {

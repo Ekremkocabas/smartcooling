@@ -9,6 +9,6 @@ exports.handler = async (event) => {
   if (!kras.actieLoopt()) return json(410, { ok: false, error: "De kraskaart-actie is afgelopen." });
   let b = {}; try { b = JSON.parse(event.body || "{}"); } catch (e) {}
   const t = kras.readToken(b.token); if (t) return json(200, { ok: true, korting: t.a, token: b.token, again: true });
-  try { connectLambda(event); const store = getStore({ name: "kras", consistency: "strong" }); const r = await kras.reveal(store); return json(200, { ok: true, korting: r.a, token: r.token }); }
+  try { connectLambda(event); const store = getStore("kras"); const r = await kras.reveal(store); return json(200, { ok: true, korting: r.a, token: r.token }); }
   catch (e) { console.error("kras-reveal fout:", e.message); return json(500, { ok: false, error: "Even geen verbinding, probeer opnieuw." }); }
 };
