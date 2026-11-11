@@ -172,7 +172,7 @@ exports.handler = async () => {
   const since = Date.now() < Date.parse("2026-11-13T00:00:00Z")
     ? Math.floor(Date.parse("2026-11-01T00:00:00Z") / 1000)
     : Math.floor(Date.now() / 1000) - LOOKBACK_H * 3600;
-  let nieuw = 0, overgeslagen = 0;
+  let nieuw = 0, overgeslagen = 0, test = 0;
   const call = await odoo();
   for (const formId of formIds) {
     let form = { name: formId };
@@ -183,6 +183,8 @@ exports.handler = async () => {
       const page = url.startsWith("http") ? await (await fetch(url)).json() : await graph(url, pageToken);
       if (page.error) throw new Error("Meta: " + page.error.message);
       for (const lead of page.data || []) {
+        // Meta-testleads (Lead Ads Testing Tool: "<test lead: dummy data ...>", test@meta.com) nooit naar Odoo/mail
+        if ((lead.field_data || []).some((f) => (f.values || []).some((v) => /<test lead:|^test@meta\.com$/i.test(v)))) { test++; continue; }
         try {
           const payload = toPayload(lead, form.name || formId);
           if (await odooHasLead(call, lead.id)) { await repairLead(call, lead.id, payload).catch((e) => console.warn("herstel mislukt:", e.message)); overgeslagen++; continue; }
@@ -196,6 +198,6 @@ exports.handler = async () => {
       url = (page.paging && page.paging.next) || null;
     }
   }
-  console.log(`meta-leads-sync klaar: ${nieuw} nieuw, ${overgeslagen} al in Odoo`);
+  console.log(`meta-leads-sync klaar: ${nieuw} nieuw, ${overgeslagen} al in Odoo, ${test} Meta-testlead(s) genegeerd`);
   return { statusCode: 200, body: JSON.stringify({ nieuw, overgeslagen }) };
 };
