@@ -68,6 +68,7 @@ async function claim(store, tok, email, gsm) {
   return Object.assign({ nieuw: true }, rec);
 }
 
-const VOORWAARDEN_KORT = "Enkel airco met buitenunit (niet voor monoblock). Korting volgens offertebedrag excl. btw vóór korting: t/m € 1.500 max. € 50 · t/m € 1.750 max. € 75 · t/m € 2.000 max. € 100 · boven € 2.000 de volledige gewonnen korting. Geldig voor offertes aangevraagd t/m 31/12/2026, 1 per persoon/adres, niet cumuleerbaar, niet inwisselbaar voor geld. Volledige voorwaarden: smartcooling.be/kras";
+const VOORWAARDEN_KORT = "Enkel airco met buitenunit (niet voor monoblock). De gewonnen korting geldt volledig bij een offerte boven € 2.000 (excl. btw, vóór korting). Bij een lagere offerte krijgt u nu: t/m € 1.500 € 50 · t/m € 1.750 € 75 · t/m € 2.000 € 100, en het verschil als tegoed op uw eerste jaarlijkse onderhoud door Smart Cooling (geldig t/m 31/12/2027). Geldig voor offertes aangevraagd t/m 31/12/2026, 1 per persoon/adres, niet cumuleerbaar, niet inwisselbaar voor geld. Volledige voorwaarden: smartcooling.be/kras";
+const TEGOED_TOT = "31/12/2027";
 
-module.exports = { amountFor, reveal, claim, readToken, makeToken, geldigTot, actieLoopt, normGsm, VOORWAARDEN_KORT, REEKS };
+module.exports = { amountFor, reveal, claim, readToken, makeToken, geldigTot, actieLoopt, normGsm, VOORWAARDEN_KORT, TEGOED_TOT, REEKS };

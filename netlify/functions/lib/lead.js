@@ -438,6 +438,15 @@ async function sendKrasKlantMail(ctx) {
 <div style="font-size:56px;font-weight:bold;line-height:1.1;margin:4px 0">€ ${k}</div>
 <div style="font-size:17px;font-weight:bold;color:#1E8FC6">EXTRA KORTING op uw airco met plaatsing</div>
 <div style="font-size:13px;color:#5B6F80;margin-top:10px">Deze korting staat al bij uw aanvraag. U hoeft niets te bewaren of te vermelden.</div></div>
+<table role="presentation" width="100%" style="margin-top:14px;background:#EAF4FA;border-radius:12px;font-size:14px" cellpadding="0" cellspacing="0"><tr><td style="padding:12px 16px">
+<b>Zo krijgt u uw € ${k}:</b>
+<table role="presentation" width="100%" style="font-size:14px;margin-top:6px" cellpadding="4" cellspacing="0">
+<tr><td style="color:#5B6F80;border-bottom:1px solid #D6E4EE">Offerte boven € 2.000</td><td align="right" style="border-bottom:1px solid #D6E4EE"><b>volledig als korting</b></td></tr>
+<tr><td style="color:#5B6F80;border-bottom:1px solid #D6E4EE">t/m € 2.000</td><td align="right" style="border-bottom:1px solid #D6E4EE"><b>€ ${Math.min(k,100)} korting</b></td></tr>
+<tr><td style="color:#5B6F80;border-bottom:1px solid #D6E4EE">t/m € 1.750</td><td align="right" style="border-bottom:1px solid #D6E4EE"><b>€ ${Math.min(k,75)} korting</b></td></tr>
+<tr><td style="color:#5B6F80">t/m € 1.500</td><td align="right"><b>€ 50 korting</b></td></tr></table>
+<p style="margin:8px 0 0;font-size:13px">Het verschil krijgt u als <b>tegoed op uw eerste jaarlijkse onderhoud</b> (geldig t/m ${kras.TEGOED_TOT}). U verliest dus niets. Bedragen excl. btw, vóór korting.</p>
+</td></tr></table>
 </td></tr></table></td></tr>
 <tr><td style="padding:16px 0 0"><table role="presentation" width="100%" style="background:#fff;border-radius:14px"><tr><td style="padding:22px 26px">
 <p style="font-size:19px;font-weight:bold;margin:0 0 10px">Zo gaat het verder</p>
@@ -529,7 +538,7 @@ async function processLead(payload, opts) {
       if (ctx.kras && ctx.kras.korting) {
         extra = { x_kras_korting: ctx.kras.korting, x_kras_code: ctx.kras.code, x_kras_nummer: ctx.kras.nummer };
         vals.description = `<p style="font-size:15px;margin:0 0 6px"><b>🎟 KRASKAART-ACTIE</b> &nbsp; <span style="background:#C9A227;color:#0A1622;border-radius:10px;padding:2px 10px;font-weight:700">€ ${ed(ctx.kras.korting)} gewonnen</span></p>` +
-          block("Kraskaart (intern – code niet aan de klant geven)", [row("Gewonnen", "<b>€ " + ed(ctx.kras.korting) + "</b>"), row("Code", "<b>" + ed(ctx.kras.code) + "</b>"), row("Deelnemer nr.", ed(ctx.kras.nummer)), row("Geldig tot", ed(ctx.kras.geldig_tot)), row("Eerder deelgenomen", ctx.kras.nieuw ? "nee" : "<b>ja – zelfde code</b>"), row("Toepassen", "Offerte → ⚙ Actie → Kraskaart-korting toepassen (plafond volgens offertebedrag)")]) + vals.description;
+          block("Kraskaart (intern – code niet aan de klant geven)", [row("Gewonnen", "<b>€ " + ed(ctx.kras.korting) + "</b>"), row("Code", "<b>" + ed(ctx.kras.code) + "</b>"), row("Deelnemer nr.", ed(ctx.kras.nummer)), row("Geldig tot", ed(ctx.kras.geldig_tot)), row("Eerder deelgenomen", ctx.kras.nieuw ? "nee" : "<b>ja – zelfde code</b>"), row("Toepassen", "Offerte → ⚙ Actie → Kraskaart-korting toepassen (plafond volgens offertebedrag; rest wordt onderhoudstegoed bij de klant)")]) + vals.description;
       } else if (ctx.kras && ctx.kras.fout) {
         vals.description = `<p style="color:#B42318"><b>Kraskaart niet toegekend:</b> ${ed(ctx.kras.fout)}</p>` + vals.description;
       }
