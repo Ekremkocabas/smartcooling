@@ -8,14 +8,14 @@
 gtag('consent','default',{'ad_storage':'denied','ad_user_data':'denied','ad_personalization':'denied','analytics_storage':'denied','wait_for_update':500});
 gtag('set','url_passthrough',true);gtag('set','ads_data_redaction',true);
 gtag('js',new Date());gtag('config','G-H63YYJ5K2M',{'anonymize_ip':true});</script>
-<script src="/assets/sc-events.js?v=20261108a" defer></script>
+<script src="/assets/sc-events.js?v=20261114a" defer></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Kras en win tot € 150 extra korting op uw airco | Smart Cooling</title>
-<meta name="description" content="Kras uw kaart en win minstens € 50, tot € 150 extra korting op een airco met buitenunit met plaatsing. Actie november en december, tot 31 december 2026.">
+<meta name="description" content="Kras uw kaart en win minstens € 75, tot € 150 extra korting op een airco met buitenunit met plaatsing. Actie november en december, tot 31 december 2026.">
 <link rel="canonical" href="https://smartcooling.be/kras/">
 <meta name="robots" content="noindex,follow">
 <meta property="og:type" content="website"><meta property="og:site_name" content="Smart Cooling"><meta property="og:locale" content="nl_BE">
-<meta property="og:title" content="Kras en win tot € 150 extra korting op uw airco"><meta property="og:description" content="Iedereen wint minstens € 50. Actie november en december."><meta property="og:url" content="https://smartcooling.be/kras/"><meta property="og:image" content="https://smartcooling.be/assets/og-image.jpg">
+<meta property="og:title" content="Kras en win tot € 150 extra korting op uw airco"><meta property="og:description" content="Iedereen wint minstens € 75. Actie november en december."><meta property="og:url" content="https://smartcooling.be/kras/"><meta property="og:image" content="https://smartcooling.be/assets/og-image.jpg">
 <meta name="theme-color" content="#0A1622">
 <link rel="icon" href="/favicon.png" type="image/png"><link rel="apple-touch-icon" href="/assets/icon-180.png?v=20261008a">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -62,41 +62,88 @@ input:focus,select:focus{outline:none;border-color:var(--ice)}
 .vw{font-size:.8rem;color:rgba(255,255,255,.6);margin-top:26px;line-height:1.5}
 .vw a{color:var(--ice-l)}
 @media(max-width:340px){.r2{grid-template-columns:1fr}}
+
+.stp{display:none}.stp.on{display:block}
+.steps{display:flex;justify-content:center;gap:6px;margin:0 0 14px}.steps i{width:28px;height:5px;border-radius:3px;background:#D6E4EE}.steps i.on{background:#C9A227}
+.q{font:800 1.15rem var(--fd);text-align:center;margin:0 0 12px}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.opt{border:1.5px solid #CBD6E0;background:#fff;border-radius:12px;padding:14px 8px;font:700 1.05rem var(--fs);color:var(--ink);cursor:pointer}
+.opt.sel{background:#F3C845;border-color:#C9A227}
+.m2{display:flex;align-items:center;gap:8px}.m2 input{flex:1}.m2 span{font-weight:700;color:var(--slate)}
+.big{font:800 clamp(2.6rem,12vw,3.6rem) var(--fd);color:#B8860B;text-align:center;line-height:1.05;margin:4px 0}
+.ok{font-size:3rem;text-align:center;margin:0}
+.lead2{text-align:center;color:var(--slate);margin:6px 0 0;font-size:.95rem}
+.back{background:none;border:0;color:var(--slate);font:600 .9rem var(--fs);cursor:pointer;margin:12px auto 0;display:block}
 </style>
 </head>
 <body>
 <header class="kh"><a href="/" aria-label="Smart Cooling home"><img src="/assets/logo.png?v=20261008a" alt="Smart Cooling" width="426" height="168"></a></header>
 <main class="kx">
   <p style="text-align:center;margin:0"><span class="pill">🎁 Actie november &amp; december · tot 31/12</span></p>
-  <h1>Kras en win tot <em>€&nbsp;150</em> extra korting</h1>
-  <p class="sub">Op uw <b>airco met buitenunit</b> met plaatsing. Iedereen wint minstens <b>€&nbsp;50</b>. Kras hieronder uw kaart open.</p>
+  <h1>Kras en win <em>€&nbsp;75 tot €&nbsp;150</em> extra korting</h1>
+  <p class="sub">Op uw <b>airco met buitenunit</b> met plaatsing. <b>Iedereen wint.</b> Uw airco verwarmt ook: deze winter al besparen.</p>
 
   <div class="card2">
-    <div class="scr" id="scr">
-      <div class="res" id="res"><small>U wint</small><b id="amt">€ …</b><small>extra korting</small></div>
-      <canvas id="cv"></canvas>
-    </div>
-    <p class="hint" id="hint">👆 Kras met uw vinger of muis</p>
-    <p class="err" id="err" style="text-align:center"></p>
+    <div class="steps" aria-hidden="true"><i id="s1" class="on"></i><i id="s2"></i><i id="s3"></i><i id="s4"></i></div>
 
-    <div class="won" id="won">
-      <p style="margin:0;font-size:1.15rem;font-weight:700">🎉 Proficiat! U wint <span id="amt2"></span> extra korting.</p>
-      <p style="margin:8px 0 0;color:var(--slate);font-size:.95rem">Leg uw korting vast met de <b>gratis Aircocheck</b> (2 minuten). Zo weten wij meteen welke airco bij u past en krijgt u uw richtprijs-offerte mét korting.</p>
-      <div class="btns">
-        <a class="btn2 claim" id="claim" href="/aircocheck/">Claim uw <span id="amt3"></span>: start de Aircocheck →</a>
-        <a class="btn2 ig" href="https://www.instagram.com/smartcooling.be/" target="_blank" rel="noopener" id="igb">📸 Volg ons op Instagram</a>
+    <!-- 1 · gegevens -->
+    <section class="stp on" id="st1">
+      <p class="q">Eerst uw gegevens, dan mag u krassen</p>
+      <form id="f1" novalidate>
+        <label>Voornaam<input name="voornaam" autocomplete="given-name" required maxlength="40"></label>
+        <label>Gsm-nummer<input name="gsm" type="tel" inputmode="tel" autocomplete="tel" placeholder="04xx xx xx xx" required maxlength="20"></label>
+        <label>E-mailadres<input name="email" type="email" inputmode="email" autocomplete="email" required maxlength="80"></label>
+        <label>Postcode<input name="postcode" inputmode="numeric" autocomplete="postal-code" pattern="[0-9]{4}" maxlength="4" required></label>
+        <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <label class="chk"><input type="checkbox" name="akkoord" required><span>Ik ga akkoord met de <a href="#voorwaarden">actievoorwaarden</a> en het <a href="/privacy/">privacybeleid</a>.</span></label>
+        <p class="err" id="e1"></p>
+        <button class="go" type="submit" id="b1">Naar mijn kraskaart →</button>
+      </form>
+    </section>
+
+    <!-- 2 · krassen -->
+    <section class="stp" id="st2">
+      <p class="q" id="hi">Kras uw kaart!</p>
+      <div class="scr" id="scr">
+        <div class="res"><small>U wint</small><b id="amt">€ …</b><small>extra korting</small></div>
+        <canvas id="cv"></canvas>
       </div>
-      <div class="tiers"><b>Zo krijgt u uw <span class="amtx"></span>:</b>
-        <div class="tr"><span>Offerte boven € 2.000</span><b>volledig als korting</b></div>
-        <div class="tr"><span>t/m € 2.000</span><b>€ 100 korting</b></div>
-        <div class="tr"><span>t/m € 1.750</span><b>€ 75 korting</b></div>
-        <div class="tr"><span>t/m € 1.500</span><b>€ 50 korting</b></div>
-        <p>Het verschil krijgt u als <b>tegoed op uw eerste jaarlijkse onderhoud</b>. U verliest dus niets.</p></div>
-      <p class="mini">Enkel voor airco met buitenunit (niet voor monoblock). Bedragen excl. btw, vóór korting. Zie <a href="#voorwaarden">voorwaarden</a>.</p>
-    </div>
+      <p class="hint">👆 Kras met uw vinger of muis</p>
+    </section>
+
+    <!-- 3 · gewonnen + aantal -->
+    <section class="stp" id="st3">
+      <p style="text-align:center;margin:0;font-weight:700">🎉 Proficiat<span class="vn"></span>, u wint</p>
+      <p class="big"><span class="amtx"></span></p>
+      <p class="lead2" id="opn" hidden>U deed al eerder mee: dit is uw korting.</p>
+      <p class="lead2" style="margin-bottom:16px">extra korting · vastgelegd ✓</p>
+      <p class="q">Hoeveel airco's wenst u?</p>
+      <div class="opts" id="aant"><button class="opt" type="button" data-v="1">1</button><button class="opt" type="button" data-v="2">2</button><button class="opt" type="button" data-v="3">3</button><button class="opt" type="button" data-v="meer">Meer</button></div>
+      <p class="err" id="e3"></p>
+    </section>
+
+    <!-- 4 · m² + merk -->
+    <section class="stp" id="st4">
+      <div id="m2w"><p class="q">Hoe groot is elke ruimte?</p><div id="m2s" style="display:grid;gap:10px"></div></div>
+      <p class="lead2" id="meerTxt" hidden style="margin-bottom:10px">Bij meer dan 3 airco's bellen wij u om alles samen te overlopen.</p>
+      <p class="q" style="margin-top:18px">Voorkeur merk? <span style="font:500 .85rem var(--fs);color:var(--slate)">(niet verplicht)</span></p>
+      <div class="opts" id="merk"><button class="opt" type="button" data-v="Daikin">Daikin</button><button class="opt" type="button" data-v="Mitsubishi">Mitsubishi</button><button class="opt" type="button" data-v="LG">LG</button><button class="opt" type="button" data-v="Panasonic">Panasonic</button><button class="opt" type="button" data-v="Nuova">Nuova</button><button class="opt" type="button" data-v="Geen voorkeur">Geen voorkeur</button></div>
+      <p class="err" id="e4"></p>
+      <button class="go" type="button" id="b4" style="width:100%;margin-top:14px">Verzenden ✓</button>
+      <button class="back" type="button" id="bk">← terug</button>
+    </section>
+
+    <!-- 5 · klaar -->
+    <section class="stp" id="st5">
+      <p class="ok">✅</p>
+      <p class="q" style="font-size:1.4rem">Uw <span class="amtx"></span> korting is vastgelegd</p>
+      <p class="lead2">Wij bellen u <b>binnen 2 werkdagen</b> voor uw gratis offerte, met uw korting al verrekend. U krijgt ook een bevestiging per mail.</p>
+      <div class="btns"><a class="btn2 ig" href="https://www.instagram.com/smartcooling.be/" target="_blank" rel="noopener" id="igb">📸 Volg ons op Instagram</a></div>
+    </section>
   </div>
 
   <div class="usp"><div><b>ENREF</b>erkend koeltechnisch bedrijf</div><div><b>★ 5,0</b>op Google</div><div><b>Limburg</b>en omgeving</div></div>
+  <p class="mini" style="text-align:center;color:rgba(255,255,255,.6)">Enkel airco met buitenunit (niet voor monoblock). Bedragen excl. btw. <a href="#voorwaarden" style="color:var(--ice-l)">Voorwaarden</a></p>
 
   <div class="vw" id="voorwaarden">
     <b>Actievoorwaarden kraskaart (actie november &amp; december 2026).</b>
@@ -104,8 +151,8 @@ input:focus,select:focus{outline:none;border-color:var(--ice)}
       <li><b>Organisator:</b> Smart Cooling (Smart Tech BV), Lochtemanweg 96, 3550 Heusden-Zolder.</li>
       <li><b>Deelname</b> is gratis en zonder aankoopverplichting. Enkel voor meerderjarige particulieren en bedrijven met een installatieadres in ons werkgebied (Limburg en omgeving).</li>
       <li><b>Enkel airco met buitenunit</b> (single split of multisplit). De actie geldt niet voor monoblock (airco zonder buitenunit).</li>
-      <li><b>Hoe:</b> kras de kaart, vul daarna de gratis Aircocheck volledig in met correcte gegevens. Pas dan is de korting vastgelegd.</li>
-      <li><b>Bedragen:</b> elke deelnemer wint een korting. Per reeks van 11 deelnemers: 5× € 50, 3× € 75, 1× € 100, 1× € 125 en 1× € 150, in willekeurige volgorde.</li>
+      <li><b>Hoe:</b> vul uw voornaam, gsm-nummer, e-mailadres en postcode correct in en kras de kaart. Uw korting is dan meteen vastgelegd. Daarna kunt u ons nog vertellen hoeveel airco's u wenst (niet verplicht).</li>
+      <li><b>Bedragen:</b> elke deelnemer wint een korting. Per reeks van 11 deelnemers: 5× € 75, 3× € 100, 2× € 125 en 1× € 150, in willekeurige volgorde. Iedereen wint minstens € 75.</li>
       <li><b>Toepassing volgens offertebedrag</b> (levering en plaatsing door Smart Cooling, excl. btw, vóór korting): boven € 2.000 krijgt u de volledige gewonnen korting. Bij een lagere offerte krijgt u nu: t/m € 1.500 € 50 · € 1.500,01 – € 1.750 € 75 · € 1.750,01 – € 2.000 € 100 (nooit meer dan het gewonnen bedrag). <b>Het verschil</b> tussen het gewonnen en het toegepaste bedrag krijgt u als <b>tegoed op uw eerste jaarlijkse onderhoud</b> door Smart Cooling, geldig t/m 31/12/2027, enkel voor het geplaatste toestel, niet inwisselbaar voor geld en niet overdraagbaar.</li>
       <li><b>Geldigheid:</b> voor offertes aangevraagd t/m 31/12/2026. De korting wordt vermeld op uw offerte en verrekend op de factuur.</li>
       <li>1 korting per persoon, e-mailadres, gsm-nummer en installatieadres. Niet cumuleerbaar met andere acties of kortingen, niet inwisselbaar voor geld, niet overdraagbaar.</li>
@@ -116,33 +163,64 @@ input:focus,select:focus{outline:none;border-color:var(--ice)}
 </main>
 <script>
 (function(){
-  var scr=document.getElementById("scr"),cv=document.getElementById("cv"),err=document.getElementById("err");
-  var A=null,TOK=null,done=false;
-  function utm(){try{var q=new URLSearchParams(location.search),o=[];["utm_source","utm_medium","utm_campaign","utm_content"].forEach(function(k){if(q.get(k))o.push(k+"="+encodeURIComponent(q.get(k).slice(0,40)))});return o.length?"&"+o.join("&"):""}catch(e){return""}}
-  var old=null;try{old=localStorage.getItem("sc_kras_token")}catch(e){}
-  function load(){return fetch("/.netlify/functions/kras-reveal",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:old||""})})
-    .then(function(r){return r.json()}).then(function(j){if(!j.ok)throw new Error(j.error||"fout");A=j.korting;TOK=j.token;try{localStorage.setItem("sc_kras_token",TOK)}catch(e){}
-      document.getElementById("amt").textContent="€ "+A;document.getElementById("amt2").textContent="€ "+A;document.getElementById("amt3").textContent="€ "+A;[].forEach.call(document.querySelectorAll(".amtx"),function(e){e.textContent="€ "+A});
-      document.getElementById("claim").href="/aircocheck/?kras="+encodeURIComponent(TOK)+utm();})
-    .catch(function(e){err.textContent=(e&&e.message&&e.message!=="fout")?e.message:"Even geen verbinding. Herlaad de pagina.";});}
-  var P=load();
-  // kraslaag
-  var r=scr.getBoundingClientRect(),dpr=window.devicePixelRatio||1;cv.width=r.width*dpr;cv.height=r.height*dpr;var c=cv.getContext("2d");c.scale(dpr,dpr);
-  var g=c.createLinearGradient(0,0,r.width,r.height);g.addColorStop(0,"#E7C24A");g.addColorStop(.45,"#B8901F");g.addColorStop(.6,"#F3D877");g.addColorStop(1,"#B8901F");
-  c.fillStyle=g;c.fillRect(0,0,r.width,r.height);c.fillStyle="#0A1622";c.textAlign="center";c.font="800 26px Archivo, Inter, sans-serif";c.fillText("KRAS HIER",r.width/2,r.height/2-4);
-  c.font="600 15px Inter, sans-serif";c.fillText("✨ minstens € 50 ✨",r.width/2,r.height/2+22);c.globalCompositeOperation="destination-out";
-  var down=false,n=0;
+  var $=function(i){return document.getElementById(i)};
+  var A=null,S=null,VN="",AANT=null,MERK="",done=false;
+  function trk(n,p){try{if(window.scTrack)window.scTrack(n,p||{});if(typeof gtag==="function")gtag("event",n.toLowerCase(),p||{})}catch(e){}}
+  function go(n){for(var i=1;i<=5;i++){$("st"+i).classList.toggle("on",i===n);if(i<5)$("s"+i).classList.toggle("on",i<=Math.min(n,4))}window.scrollTo({top:Math.max(0,document.querySelector(".card2").offsetTop-20),behavior:"smooth"})}
+  function utm(){try{var q=new URLSearchParams(location.search),o=[];["utm_source","utm_medium","utm_campaign","utm_content"].forEach(function(k){if(q.get(k))o.push(k+"="+q.get(k).slice(0,40))});return o.join("&")}catch(e){return""}}
+  function setAmt(){[].forEach.call(document.querySelectorAll(".amtx"),function(e){e.textContent="€ "+A});$("amt").textContent="€ "+A;[].forEach.call(document.querySelectorAll(".vn"),function(e){e.textContent=VN?" "+VN:""})}
+  // terugkerende bezoeker: sessie bewaard
+  try{var o=JSON.parse(localStorage.getItem("sc_kras3")||"null");if(o&&o.a&&o.s){A=o.a;S=o.s;VN=o.v||"";setAmt();if(o.klaar){go(5)}else{go(3)}}}catch(e){}
+
+  // 1 · gegevens
+  $("f1").addEventListener("submit",function(e){e.preventDefault();var f=e.target,b=$("b1"),er=$("e1");er.textContent="";
+    var d={voornaam:f.voornaam.value.trim(),gsm:f.gsm.value.trim(),email:f.email.value.trim(),postcode:f.postcode.value.trim(),akkoord:f.akkoord.checked,website:f.website.value,bron:location.pathname,utm:utm(),apparaat:/Mobi|Android/i.test(navigator.userAgent)?"gsm":"computer"};
+    if(!d.voornaam){er.textContent="Vul uw voornaam in.";return}
+    if(!/^(\+?32|0)\d{8,9}$/.test(d.gsm.replace(/[\s.\/-]/g,""))){er.textContent="Vul een geldig Belgisch gsm-nummer in.";return}
+    if(!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(d.email)){er.textContent="Vul een geldig e-mailadres in.";return}
+    if(!/^[1-9]\d{3}$/.test(d.postcode)){er.textContent="Vul een geldige postcode in (4 cijfers).";return}
+    if(!d.akkoord){er.textContent="Vink de voorwaarden aan.";return}
+    b.disabled=true;b.textContent="Even geduld…";
+    fetch("/.netlify/functions/kras-start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)}).then(function(r){return r.json()}).then(function(j){
+      if(!j.ok)throw new Error(j.error||"fout");A=j.korting;S=j.sessie;VN=d.voornaam;setAmt();$("hi").textContent="Kras uw kaart, "+VN+"!";if(j.opnieuw)$("opn").hidden=false;
+      try{localStorage.setItem("sc_kras3",JSON.stringify({a:A,s:S,v:VN}))}catch(x){}
+      trk("Lead",{content_name:"kraskaart",value:A,currency:"EUR"});go(2);setTimeout(paint,60);
+    }).catch(function(x){er.textContent=(x&&x.message&&x.message!=="fout")?x.message:"Even geen verbinding. Probeer opnieuw.";b.disabled=false;b.textContent="Naar mijn kraskaart →"});
+  });
+
+  // 2 · krassen
+  var cv=$("cv"),c,n=0,down=false;
+  function paint(){var r=$("scr").getBoundingClientRect(),dpr=window.devicePixelRatio||1;cv.width=r.width*dpr;cv.height=r.height*dpr;c=cv.getContext("2d");c.scale(dpr,dpr);
+    var g=c.createLinearGradient(0,0,r.width,r.height);g.addColorStop(0,"#E7C24A");g.addColorStop(.45,"#B8901F");g.addColorStop(.6,"#F3D877");g.addColorStop(1,"#B8901F");
+    c.fillStyle=g;c.fillRect(0,0,r.width,r.height);c.fillStyle="#0A1622";c.textAlign="center";c.font="800 26px Archivo, Inter, sans-serif";c.fillText("KRAS HIER",r.width/2,r.height/2-4);
+    c.font="600 15px Inter, sans-serif";c.fillText("✨ minstens € 75 ✨",r.width/2,r.height/2+22);c.globalCompositeOperation="destination-out";}
   function pos(e){var b=cv.getBoundingClientRect();var p=e.touches?e.touches[0]:e;return[p.clientX-b.left,p.clientY-b.top]}
-  function scratch(e){if(!down||done)return;e.preventDefault();var p=pos(e);c.beginPath();c.arc(p[0],p[1],24,0,Math.PI*2);c.fill();if(++n%12===0)check()}
-  function check(){var im=c.getImageData(0,0,cv.width,cv.height).data,cl=0,t=0;for(var i=3;i<im.length;i+=64){t++;if(im[i]===0)cl++}if(cl/t>.5)P.then(function(){if(A)reveal()})}
-  function reveal(){if(done)return;done=true;cv.style.transition="opacity .5s";cv.style.opacity=0;setTimeout(function(){cv.remove()},500);document.getElementById("hint").hidden=true;document.getElementById("won").style.display="block";confetti();
-    try{if(window.scTrack)window.scTrack("ViewContent",{content_name:"kraskaart",value:A,currency:"EUR"});if(typeof gtag==="function")gtag("event","kras_reveal",{value:A})}catch(x){}
-    setTimeout(function(){document.getElementById("won").scrollIntoView({behavior:"smooth",block:"center"})},600)}
-  cv.addEventListener("pointerdown",function(e){down=true;scratch(e)});cv.addEventListener("pointermove",scratch);window.addEventListener("pointerup",function(){down=false;if(!done)check()});
-  cv.addEventListener("touchstart",function(e){down=true;scratch(e)},{passive:false});cv.addEventListener("touchmove",scratch,{passive:false});cv.addEventListener("touchend",function(){down=false;if(!done)check()});
+  function scratch(e){if(!down||done||!c)return;e.preventDefault();var p=pos(e);c.beginPath();c.arc(p[0],p[1],26,0,Math.PI*2);c.fill();if(++n%10===0)check()}
+  function check(){var im=c.getImageData(0,0,cv.width,cv.height).data,cl=0,t=0;for(var i=3;i<im.length;i+=64){t++;if(im[i]===0)cl++}if(cl/t>.45)reveal()}
+  function reveal(){if(done)return;done=true;cv.style.transition="opacity .5s";cv.style.opacity=0;confetti();trk("ViewContent",{content_name:"kraskaart",value:A,currency:"EUR"});setTimeout(function(){go(3)},1400)}
+  cv.addEventListener("pointerdown",function(e){down=true;scratch(e)});cv.addEventListener("pointermove",scratch);window.addEventListener("pointerup",function(){down=false;if(!done&&c)check()});
+  cv.addEventListener("touchstart",function(e){down=true;scratch(e)},{passive:false});cv.addEventListener("touchmove",scratch,{passive:false});cv.addEventListener("touchend",function(){down=false;if(!done&&c)check()});
   function confetti(){var cols=["#F3C845","#46B4E8","#fff","#DD2A7B"];for(var i=0;i<70;i++){var s=document.createElement("i");s.style.cssText="position:fixed;top:-10px;left:"+Math.random()*100+"vw;width:8px;height:12px;background:"+cols[i%4]+";z-index:99;border-radius:2px;transition:transform 2.2s cubic-bezier(.2,.6,.4,1),opacity 2.2s;pointer-events:none";document.body.appendChild(s);(function(s){requestAnimationFrame(function(){s.style.transform="translate("+(Math.random()*120-60)+"px,"+(window.innerHeight+40)+"px) rotate("+Math.random()*720+"deg)";s.style.opacity=.2});setTimeout(function(){s.remove()},2400)})(s)}}
-  document.getElementById("claim").addEventListener("click",function(){try{if(typeof gtag==="function")gtag("event","kras_claim_click",{value:A});if(window.scTrack)window.scTrack("InitiateCheckout",{content_name:"kraskaart_aircocheck",value:A,currency:"EUR"})}catch(e){}});
-  document.getElementById("igb").addEventListener("click",function(){try{if(typeof gtag==="function")gtag("event","instagram_follow_click",{page:"/kras/"});if(window.scTrack)window.scTrack("Contact",{content_name:"instagram"})}catch(e){}});
+
+  // 3 · aantal
+  [].forEach.call(document.querySelectorAll("#aant .opt"),function(b){b.addEventListener("click",function(){
+    [].forEach.call(document.querySelectorAll("#aant .opt"),function(x){x.classList.remove("sel")});b.classList.add("sel");AANT=b.getAttribute("data-v");
+    var w=$("m2s");w.innerHTML="";var meer=AANT==="meer";$("m2w").hidden=meer;$("meerTxt").hidden=!meer;
+    if(!meer)for(var i=1;i<=Number(AANT);i++){var l=document.createElement("label");l.className="m2";l.innerHTML='<input type="number" inputmode="numeric" min="4" max="300" placeholder="Ruimte '+i+'" aria-label="Ruimte '+i+' in m²"><span>m²</span>';w.appendChild(l)}
+    setTimeout(function(){go(4)},250)})});
+  $("bk").addEventListener("click",function(){go(3)});
+  // 4 · m² + merk
+  [].forEach.call(document.querySelectorAll("#merk .opt"),function(b){b.addEventListener("click",function(){var on=b.classList.contains("sel");[].forEach.call(document.querySelectorAll("#merk .opt"),function(x){x.classList.remove("sel")});if(!on){b.classList.add("sel");MERK=b.getAttribute("data-v")}else MERK=""})});
+  $("b4").addEventListener("click",function(){var er=$("e4"),b=$("b4");er.textContent="";var m2=[].map.call(document.querySelectorAll("#m2s input"),function(i){return i.value.trim()});
+    if(AANT!=="meer"&&m2.some(function(v){var x=Number(v.replace(",","."));return!(x>=4&&x<=300)})){er.textContent="Vul de oppervlakte van elke ruimte in (in m²).";return}
+    b.disabled=true;b.textContent="Even geduld…";
+    fetch("/.netlify/functions/kras-finish",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessie:S,aantal:AANT,m2:m2,merk:MERK})}).then(function(r){return r.json()}).then(function(j){
+      if(!j.ok)throw new Error(j.error||"fout");try{localStorage.setItem("sc_kras3",JSON.stringify({a:A,s:S,v:VN,klaar:1}))}catch(x){}
+      trk("CompleteRegistration",{content_name:"kraskaart",value:A,currency:"EUR"});go(5);
+    }).catch(function(x){er.textContent=(x&&x.message&&x.message!=="fout")?x.message:"Even geen verbinding. Probeer opnieuw.";b.disabled=false;b.textContent="Verzenden ✓"});
+  });
+  $("f1").addEventListener("input",function(){$("e1").textContent=""});$("m2s").addEventListener("input",function(){$("e4").textContent=""});
+  $("igb").addEventListener("click",function(){trk("Contact",{content_name:"instagram"})});
 })();
 </script>
 </body>

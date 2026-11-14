@@ -1,4 +1,4 @@
-/* Smart Cooling – GA4 + Meta-pixel events + cookiebalk (v4, 27/10/2026)
+/* Smart Cooling – GA4 + Meta-pixel events + cookiebalk (v5, 14/11/2026: compacte cookiebalk op gsm)
    Meta-pixel (gegevensset 1051193000696447) laadt ENKEL na toestemming ("Oké").
    Events: PageView, Lead (offerteformulier via /bedankt/ + Aircocheck), Contact (WhatsApp/telefoon/e-mail). */
 (function(){
@@ -32,10 +32,10 @@
   function showBar(){
     if(document.getElementById("sc-cookie")) return;
     var s=document.createElement("style");
-    s.textContent="#sc-cookie{position:fixed;left:12px;right:12px;bottom:12px;z-index:9999;background:#0A1622;color:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 10px 30px rgba(0,0,0,.25);font:15px/1.5 Inter,system-ui,sans-serif;display:flex;gap:12px;align-items:center;flex-wrap:wrap;max-width:720px;margin:0 auto}#sc-cookie p{margin:0;flex:1 1 260px}#sc-cookie a{color:#8FD6F2}#sc-cookie .b{display:flex;gap:8px}#sc-cookie button{border:0;border-radius:999px;padding:10px 18px;font:600 14px Inter,system-ui,sans-serif;cursor:pointer}#sc-cookie .ok{background:#46B4E8;color:#0A1622}#sc-cookie .no{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.4)}@media(max-width:560px){#sc-cookie{bottom:70px}}";
+    s.textContent="#sc-cookie{position:fixed;left:8px;right:8px;bottom:8px;z-index:9999;background:#0A1622;color:#fff;border-radius:12px;padding:8px 10px 8px 14px;box-shadow:0 6px 20px rgba(0,0,0,.25);font:13px/1.35 Inter,system-ui,sans-serif;display:flex;gap:10px;align-items:center;max-width:620px;margin:0 auto;border:1px solid rgba(143,214,242,.35)}#sc-cookie p{margin:0;flex:1 1 auto}#sc-cookie a{color:#8FD6F2}#sc-cookie .b{display:flex;gap:6px;flex:0 0 auto}#sc-cookie button{border:0;border-radius:999px;padding:8px 14px;font:600 13px Inter,system-ui,sans-serif;cursor:pointer}#sc-cookie .ok{background:#46B4E8;color:#0A1622}#sc-cookie .no{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.4)}";
     document.head.appendChild(s);
     var d=document.createElement("div"); d.id="sc-cookie"; d.setAttribute("role","dialog"); d.setAttribute("aria-label","Cookies");
-    d.innerHTML='<p>Met uw toestemming gebruiken wij cookies voor statistiek (Google Analytics) en om onze advertenties op Facebook en Instagram te meten (Meta-pixel). <a href="/privacy/">Privacybeleid</a></p><div class="b"><button type="button" class="ok">Oké</button><button type="button" class="no">Weigeren</button></div>';
+    d.innerHTML='<p>🍪 Cookies voor statistiek en advertentiemeting (Google, Meta). <a href="/privacy/">Meer info</a></p><div class="b"><button type="button" class="ok">Oké</button><button type="button" class="no">Weigeren</button></div>';
     d.querySelector(".ok").onclick=function(){ try{localStorage.setItem(KEY,"ja");}catch(e){} grant(); d.remove(); };
     d.querySelector(".no").onclick=function(){ try{localStorage.setItem(KEY,"nee");}catch(e){} d.remove(); };
     if(document.body) document.body.appendChild(d); else document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d);});

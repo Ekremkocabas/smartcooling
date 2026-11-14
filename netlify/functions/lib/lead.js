@@ -252,6 +252,10 @@ function leadMailHtml(ctx) {
       ["Code", "<b>" + esc(d.code || "") + "</b>", true],
       ["Geldig tot", d.geldig_tot],
       ["Deelnemer nr.", d.nummer],
+      ["Stap", d.stap === "start" ? "<b>1/2 · gegevens gegeven, gekrast</b> (aantal/m² volgt als de klant verder gaat)" : d.stap === "klaar" ? "<b>2/2 · aangevuld ✅</b>" : ""],
+      ["Aantal airco's", d.aantal],
+      ["Grootte per ruimte", esc(d.ruimtes_m2 || "").replace(/\n/g, "<br>"), true],
+      ["Voorkeur merk", d.merk],
       ["Interesse", d.interesse],
       ["Wanneer", d.wanneer],
     ]);
@@ -420,6 +424,24 @@ async function pushToOdoo(vals, extra, mono, naam) {
 }
 
 
+// Kraskaart v3 stap 2: bestaande lead bijwerken (gevonden via x_kras_code). Geen nieuwe lead.
+async function updateKrasLead(u) {
+  const URL = process.env.ODOO_URL, DB = process.env.ODOO_DB, LOGIN = process.env.ODOO_LOGIN, KEY = process.env.ODOO_API_KEY;
+  if (!URL || !DB || !LOGIN || !KEY) throw new Error("Odoo-instellingen (env vars) ontbreken in Netlify");
+  const rpc = async (service, method, args) => {
+    const res = await fetch(`${URL}/jsonrpc`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", method: "call", params: { service, method, args } }) });
+    const j = await res.json(); if (j.error) throw new Error((j.error.data && j.error.data.message) || j.error.message || JSON.stringify(j.error)); return j.result;
+  };
+  const uid = await rpc("common", "authenticate", [DB, LOGIN, KEY, {}]); if (!uid) throw new Error("Odoo-aanmelding mislukt");
+  const found = await rpc("object", "execute_kw", [DB, uid, KEY, "crm.lead", "search_read", [[["x_kras_code", "=", u.__krasUpdate]]], { fields: ["id", "name", "description"], limit: 1, order: "id asc", context: { active_test: false } }]);
+  if (!found.length) throw new Error("kraskaart-lead met deze code niet gevonden (stap 1 nog niet verwerkt?)");
+  const l = found[0];
+  const name = l.name.replace(/ · gegevens - /, " · " + (u.nameSuffix || "aangevuld") + " - ");
+  await rpc("object", "execute_kw", [DB, uid, KEY, "crm.lead", "write", [[l.id], { name, description: u.descTop + (l.description || ""), priority: "3" }]]);
+  console.log("Odoo kraskaart-lead bijgewerkt:", l.id);
+  return { leadId: l.id, url: `${URL.replace(/\/$/, "")}/odoo/crm/${l.id}`, bijgewerkt: true };
+}
+
 // Klantmail kraskaart: enkel het bedrag (NOOIT de code) + voorwaarden
 async function sendKrasKlantMail(ctx) {
   const key = process.env.BREVO_API_KEY; if (!key) return false;
@@ -431,7 +453,7 @@ async function sendKrasKlantMail(ctx) {
 <tr><td style="background:#fff;text-align:center;padding:22px 0 16px;border-bottom:6px solid #8FD6F2;border-radius:12px 12px 0 0"><img src="https://smartcooling.be/assets/logo.png" alt="Smart Cooling" width="190" style="display:inline-block"></td></tr>
 <tr><td style="padding:16px 0 0"><table role="presentation" width="100%" style="background:#fff;border-radius:14px"><tr><td style="padding:24px 26px">
 <p style="font-size:24px;font-weight:bold;margin:0 0 8px">Dag ${vn}, proficiat!</p>
-<p style="font-size:15px;line-height:1.55;margin:0 0 14px">Bedankt voor uw Aircocheck. Uw persoonlijk adviesrapport krijgt u in een aparte mail. Uw kraskaart-korting is vastgelegd:</p>
+<p style="font-size:15px;line-height:1.55;margin:0 0 14px">${ctx.form === "kras" ? "Bedankt voor uw deelname aan onze kraskaart-actie. Uw korting is vastgelegd:" : "Bedankt voor uw Aircocheck. Uw persoonlijk adviesrapport krijgt u in een aparte mail. Uw kraskaart-korting is vastgelegd:"}</p>
 <div style="background:#FFF8E1;border:3px dashed #C9A227;border-radius:16px;text-align:center;padding:20px 16px">
 <div style="display:inline-block;background:#0A1622;color:#F3C845;font-size:12px;font-weight:bold;letter-spacing:2px;border-radius:999px;padding:5px 12px;margin-bottom:8px">KRASKAART · ACTIE NOV &amp; DEC</div>
 <div style="font-size:16px;font-weight:bold;color:#5B6F80">U hebt gewonnen</div>
@@ -450,7 +472,7 @@ async function sendKrasKlantMail(ctx) {
 </td></tr></table></td></tr>
 <tr><td style="padding:16px 0 0"><table role="presentation" width="100%" style="background:#fff;border-radius:14px"><tr><td style="padding:22px 26px">
 <p style="font-size:19px;font-weight:bold;margin:0 0 10px">Zo gaat het verder</p>
-<ol style="padding-left:20px;margin:0;font-size:14.5px;line-height:1.6"><li><b>Binnen 3 dagen</b> sturen wij uw richtprijs-offerte, met uw korting al verrekend.</li>
+<ol style="padding-left:20px;margin:0;font-size:14.5px;line-height:1.6">${ctx.form === "kras" ? "<li><b>Binnen 2 werkdagen</b> bellen wij u om uw wensen kort te overlopen. Daarna krijgt u uw gratis offerte, met uw korting al verrekend.</li>" : "<li><b>Binnen 3 dagen</b> sturen wij uw richtprijs-offerte, met uw korting al verrekend.</li>"}
 <li>Stuur ons <b>een paar foto's</b> (plaats binnenunit, buitenunit, stopcontact) via WhatsApp of als antwoord op deze mail.</li>
 <li>Daarna uw <b>definitieve offerte</b> via uw foto's of een gratis plaatsbezoek. Ook daarin staat uw korting.</li></ol>
 <p style="margin:16px 0 0;text-align:center"><a href="https://wa.me/32470961121" style="display:inline-block;background:#46B4E8;color:#0A1622;text-decoration:none;font-weight:bold;border-radius:999px;padding:13px 26px">Foto's sturen via WhatsApp</a></p>
@@ -542,6 +564,31 @@ async function processLead(payload, opts) {
       } else if (ctx.kras && ctx.kras.fout) {
         vals.description = `<p style="color:#B42318"><b>Kraskaart niet toegekend:</b> ${ed(ctx.kras.fout)}</p>` + vals.description;
       }
+    } else if (form === "kras" && (d.stap === "start" || d.stap === "klaar")) {
+      // Kraskaart v3 (14/11): stap 1 = gegevens (kras-start, nieuwe lead), stap 2 = aantal/m²/merk (kras-finish, lead bijwerken)
+      const kr = { korting: Number(d.korting) || d.korting, code: d.code, nummer: Number(d.nummer) || d.nummer, geldig_tot: d.geldig_tot };
+      const aantalTxt = d.aantal ? (d.aantal === "meer" ? "meer dan 3 airco's" : d.aantal + (d.aantal === "1" ? " airco" : " airco's")) : "";
+      const kop = `<p style="font-size:15px;margin:0 0 6px"><b>🎟 KRASKAART-ACTIE via smartcooling.be/kras</b> &nbsp; <span style="background:#C9A227;color:#0A1622;border-radius:10px;padding:2px 10px;font-weight:700">€ ${ed(kr.korting)} gewonnen</span></p>`;
+      const krBlock = block("Kraskaart (intern – code niet aan de klant geven)", [row("Gewonnen", "<b>€ " + ed(kr.korting) + "</b>"), row("Code", "<b>" + ed(kr.code) + "</b>"), row("Deelnemer nr.", ed(kr.nummer)), row("Geldig tot", ed(kr.geldig_tot)), row("Toepassen", "Offerte → ⚙ Actie → Kraskaart-korting toepassen (plafond volgens offertebedrag; rest wordt onderhoudstegoed bij de klant)")]);
+      if (d.stap === "start") {
+        ctx.kras = Object.assign({ nieuw: true }, kr);
+        vals = {
+          name: `🎟 Kraskaart €${kr.korting} · gegevens - ${naam || "onbekend"} - ${d.postcode || ""}`.replace(/ - $/, ""),
+          type: "opportunity", contact_name: naam, phone: d.gsm || "", email_from: d.email || "", zip: d.postcode || "",
+          description: kop + `<p style="margin:0 0 8px;color:#C2691E"><b>Stap 1/2:</b> klant gaf gegevens en kraste. Vult hij aantal/m² niet aan: gewoon bellen.</p>` +
+            block("Klant", [row("Voornaam", ed(naam)), row("Postcode", ed(d.postcode)), row("GSM", ed(d.gsm)), row("E-mail", ed(d.email))]) + krBlock +
+            block("Herkomst", [row("Bronpagina", ed(d.bron_pagina)), row("UTM", ed(d.utm)), row("Apparaat", ed(d.apparaat))]),
+          priority: "2", x_studio_is_monoblock: false, team_id: TEAM_SALES, stage_id: STAGE_NIEUW, source_id: WEBSITE_SOURCE_ID,
+        };
+        extra = { x_kras_korting: kr.korting, x_kras_code: kr.code, x_kras_nummer: kr.nummer };
+      } else {
+        vals = { __krasUpdate: kr.code,
+          nameSuffix: aantalTxt,
+          descTop: `<p style="font-size:15px;margin:0 0 6px"><b>✅ Stap 2/2 aangevuld</b></p>` +
+            block("Wat wil de klant?", [row("Aantal airco's", "<b>" + ed(aantalTxt) + "</b>"), row("Grootte per ruimte", d.aantal === "meer" ? "niet gevraagd (meer dan 3) – bellen" : ed(d.ruimtes_m2).replace(/\n/g, "<br>")), row("Voorkeur merk", ed(d.merk || "geen antwoord"))]),
+        };
+        extra = {};
+      }
     } else if (form === "kras") {
       // Kraskaart-actie (/kras/): korting + unieke code, toegekend door kras-claim.js
       const description =
@@ -578,7 +625,7 @@ async function processLead(payload, opts) {
     let res = null, lastErr = "";
     for (let i = 0; i < opts.attempts; i++) {
       ctx.pogingen = i + 1;
-      try { res = await withTimeout(pushToOdoo(vals, extra, mono, naam), opts.odooTimeout, "Odoo"); break; }
+      try { res = await withTimeout(vals.__krasUpdate ? updateKrasLead(vals) : pushToOdoo(vals, extra, mono, naam), opts.odooTimeout, "Odoo"); break; }
       catch (e) { lastErr = e.message; console.error("Odoo poging " + (i + 1) + "/" + opts.attempts + " mislukt:", e.message); if (i < opts.attempts - 1) await sleep(opts.waitMs[Math.min(i, opts.waitMs.length - 1)]); }
     }
     ctx.odoo = res || { error: lastErr + " (" + opts.attempts + " pogingen)" };
