@@ -18,6 +18,8 @@
 //   Set ODOO_AUTO_QUOTE=0 in Netlify to disable quotation creation.
 
 const kras = require("./kras.js");
+let sendKlantRapport = async function () { return { skipped: 'module niet geladen' }; };
+try { sendKlantRapport = require('./klantrapport').sendKlantRapport; } catch (e) { console.error('klantrapport module niet geladen: ' + e.message); }
 const WEBSITE_SOURCE_ID = 18;   // utm.source "Website"
 const TEAM_SALES = 1;           // Verkoop (Airco)
 const TEAM_MONOBLOCK = 4;       // Monoblock
@@ -635,6 +637,7 @@ async function processLead(payload, opts) {
     if (ctx) ctx.odoo = { error: "fout in de functie: " + e.message };
   }
   if (ctx) { try { await sendLeadMail(ctx); } catch (e) { console.error("lead-mail failed:", e.message); } }
+  if (ctx && ctx.form !== 'kras') { try { console.log('klantrapport: ' + JSON.stringify(await sendKlantRapport(ctx, { mailFrom: MAIL_FROM(), mailTo: MAIL_TO() }))); } catch (e) { console.error('klantrapport failed: ' + e.message); } }
   if (ctx && ctx.kras && ctx.kras.korting && ctx.kras.nieuw) { try { await sendKrasKlantMail(ctx); console.log("kras klantmail verstuurd"); } catch (e) { console.error("kras klantmail fout:", e.message); } }
   return { odoo: ctx && ctx.odoo, pogingen: ctx && ctx.pogingen };
 }
