@@ -8,5 +8,8 @@
 /prijzen               /#offerte               301
 /warmtepomp/           /airco-installatie/     301
 /ventilatie/           /airco-installatie/     301
+# kraskaart-actie gestopt (16/11/2026)
+/kras                  /                       301!
+/kras/*                /                       301!
 # www -> apex
 https://www.smartcooling.be/*  https://smartcooling.be/:splat  301!
