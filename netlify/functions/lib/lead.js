@@ -142,7 +142,8 @@ function monoReportHtml(d, m) {
 
 // Odoo-producten zoeken op naam (ilike); niet gevonden -> notitieregel in de offerte
 const PRODUCT_KEYS = [
-  { re: /Polar\+ 25/i, keys: ["Polar+ 25", "Polar Plus 25", "Polar+"] },
+  { re: /Polar\+ 25/i, keys: ["Polar+ 25", "Polar Plus 25", "Polar+", "Polar Plus"] },
+  { re: /Polar Tower/i, keys: ["Polar Tower"] },
   { re: /Polar Pro 40/i, keys: ["Polar Pro 40", "Polar Pro"] },
   { re: /^Speciale buitenkleppen/i, keys: ["Speciale buitenkleppen", "buitenkleppen"] },
   { re: /^Betonboring/i, keys: ["Betonboring"] },
