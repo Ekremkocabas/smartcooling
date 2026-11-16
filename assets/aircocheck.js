@@ -21,7 +21,8 @@
   // Monoblock-modellen (standaardplaatsing, excl. btw)
   var MM = {
     "25": { n: "Nuova Polar+ 25", kw: "2,5 kW", p: 1350, w: 95, kg: 35, h: "2 × Ø 160 mm + 1 × Ø 32 mm (condens)", lbl: "tot 25 m²", sub: "slaapkamer, bureau" },
-    "40": { n: "Nuova Polar Pro 40", kw: "4 kW", p: 1595, w: 100, kg: 48, h: "2 × Ø 200 mm + 1 × Ø 32 mm (condens)", lbl: "25 – 45 m²", sub: "leefruimte, kantoor" }
+    "28": { n: "Nuova Polar Tower", kw: "2,8 kW", p: 1695, w: 49, ht: 140, kg: 57, h: "2 × Ø 162 mm + 1 × 30 mm (condens)", lbl: "Staand model", sub: "Polar Tower, tot ± 30 m²" },
+  "40": { n: "Nuova Polar Pro 40", kw: "4 kW", p: 1595, w: 100, kg: 48, h: "2 × Ø 200 mm + 1 × Ø 32 mm (condens)", lbl: "25 – 45 m²", sub: "leefruimte, kantoor" }
   };
   var EX = { hoog: 125, beton: 100, kleur: 125, lijnLo: 150, lijnHi: 350 };
 
@@ -141,8 +142,8 @@
     if (m.oud === "Ja") rows.push({ t: "Oud toestel verwijderen", p: null, txt: "te bekijken" });
     return { rows: rows, tot: tot, act: act };
   }
-  function wallSvg(w, h) {
-    return '<svg viewBox="0 0 320 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Vrije wand: breedte minstens ' + w + ' cm, hoogte minstens 85 cm"><rect width="320" height="175" fill="#F3F6F8" rx="6"/><rect y="175" width="320" height="25" fill="#E3E9EE"/><rect x="60" y="30" width="190" height="125" fill="#E4F3FB" stroke="#46B4E8" stroke-dasharray="5 4" stroke-width="1.5" rx="5"/><rect x="70" y="52" width="170" height="82" rx="7" fill="#fff" stroke="#0A1622" stroke-width="2"/><rect x="80" y="61" width="150" height="9" rx="3" fill="#0A1622" opacity=".85"/><circle cx="125" cy="105" r="14" fill="none" stroke="#E8A23D" stroke-width="1.5" stroke-dasharray="3 3"/><circle cx="185" cy="105" r="14" fill="none" stroke="#E8A23D" stroke-width="1.5" stroke-dasharray="3 3"/><text x="155" y="150" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#9A5B0E">boringen: ' + esc(h) + '</text><line x1="60" y1="166" x2="250" y2="166" stroke="#1E8FC6" stroke-width="2"/><line x1="60" y1="160" x2="60" y2="172" stroke="#1E8FC6" stroke-width="2"/><line x1="250" y1="160" x2="250" y2="172" stroke="#1E8FC6" stroke-width="2"/><text x="155" y="188" text-anchor="middle" font-family="Inter,sans-serif" font-weight="700" font-size="13" fill="#C2691E">breedte ≥ ' + w + ' cm</text><line x1="265" y1="30" x2="265" y2="155" stroke="#1E8FC6" stroke-width="2"/><line x1="259" y1="30" x2="271" y2="30" stroke="#1E8FC6" stroke-width="2"/><line x1="259" y1="155" x2="271" y2="155" stroke="#1E8FC6" stroke-width="2"/><text x="272" y="88" font-family="Inter,sans-serif" font-weight="700" font-size="11" fill="#C2691E">hoogte</text><text x="272" y="102" font-family="Inter,sans-serif" font-weight="700" font-size="11" fill="#C2691E">≥ 85 cm</text></svg>';
+  function wallSvg(w, h, ht) { ht = ht || 85;
+    return '<svg viewBox="0 0 320 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Vrije wand: breedte minstens ' + w + ' cm, hoogte minstens ' + ht + ' cm"><rect width="320" height="175" fill="#F3F6F8" rx="6"/><rect y="175" width="320" height="25" fill="#E3E9EE"/><rect x="60" y="30" width="190" height="125" fill="#E4F3FB" stroke="#46B4E8" stroke-dasharray="5 4" stroke-width="1.5" rx="5"/><rect x="70" y="52" width="170" height="82" rx="7" fill="#fff" stroke="#0A1622" stroke-width="2"/><rect x="80" y="61" width="150" height="9" rx="3" fill="#0A1622" opacity=".85"/><circle cx="125" cy="105" r="14" fill="none" stroke="#E8A23D" stroke-width="1.5" stroke-dasharray="3 3"/><circle cx="185" cy="105" r="14" fill="none" stroke="#E8A23D" stroke-width="1.5" stroke-dasharray="3 3"/><text x="155" y="150" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#9A5B0E">boringen: ' + esc(h) + '</text><line x1="60" y1="166" x2="250" y2="166" stroke="#1E8FC6" stroke-width="2"/><line x1="60" y1="160" x2="60" y2="172" stroke="#1E8FC6" stroke-width="2"/><line x1="250" y1="160" x2="250" y2="172" stroke="#1E8FC6" stroke-width="2"/><text x="155" y="188" text-anchor="middle" font-family="Inter,sans-serif" font-weight="700" font-size="13" fill="#C2691E">breedte ≥ ' + w + ' cm</text><line x1="265" y1="30" x2="265" y2="155" stroke="#1E8FC6" stroke-width="2"/><line x1="259" y1="30" x2="271" y2="30" stroke="#1E8FC6" stroke-width="2"/><line x1="259" y1="155" x2="271" y2="155" stroke="#1E8FC6" stroke-width="2"/><text x="272" y="88" font-family="Inter,sans-serif" font-weight="700" font-size="11" fill="#C2691E">hoogte</text><text x="272" y="102" font-family="Inter,sans-serif" font-weight="700" font-size="11" fill="#C2691E">≥ ' + ht + ' cm</text></svg>';
   }
   function yn(q, label, sub, imp) {
     var a = M().ans[q], ex = M().excl[q] || [], hasChips = q !== "s";
@@ -226,7 +227,7 @@
     var m = M(), h = '<h2>Hoeveel monoblocks wenst u?</h2><p class="small">Eén toestel per ruimte. Kies daarna per toestel de grootte van de ruimte.</p>' + chips("mn", ["1", "2", "3", "4", "5"], m.n);
     m.sizes.forEach(function (s, i) {
       h += '<fieldset class="acroom"><legend>Monoblock ' + (i + 1) + " — grootte van de ruimte</legend><div class=\"acc\">";
-      ["25", "40"].forEach(function (k) {
+      ["25", "28", "40"].forEach(function (k) {
         h += '<button type="button" class="ach acsz' + (s === k ? " on" : "") + '" data-k="ms.' + i + '" data-v="' + k + '">' + MM[k].lbl + "<small>" + MM[k].sub + "</small></button>";
       });
       h += "</div></fieldset>";
@@ -240,23 +241,23 @@
     return h;
   }
   function vM2() {
-    var m = M(), g25 = [], g40 = [];
-    m.sizes.forEach(function (s, i) { (s === "40" ? g40 : g25).push(i + 1); });
-    var h = '<h2>Kunnen alle gevraagde monoblocks op een gevelmuur komen?</h2><p class="small">Het toestel hangt aan de binnenkant van een buitengevel. Zo veel vrije wand hebt u nodig:</p><div class="acdraw' + (g25.length && g40.length ? " two" : "") + '">';
+    var m = M(), g25 = [], g28 = [], g40 = [];
+    m.sizes.forEach(function (s, i) { (s === "40" ? g40 : (s === "28" ? g28 : g25)).push(i + 1); });
+    var h = '<h2>Kunnen alle gevraagde monoblocks op een gevelmuur komen?</h2><p class="small">Het toestel hangt aan de binnenkant van een buitengevel. Zo veel vrije wand hebt u nodig:</p><div class="acdraw' + ((g25.length ? 1 : 0) + (g28.length ? 1 : 0) + (g40.length ? 1 : 0) === 2 ? " two" : "") + '">';
     if (g25.length) h += '<div class="acd"><h4>Monoblock ' + g25.join(", ") + " — 2,5 kW</h4>" + wallSvg(95, MM["25"].h) + "</div>";
-    if (g40.length) h += '<div class="acd"><h4>Monoblock ' + g40.join(", ") + " — 4 kW</h4>" + wallSvg(100, MM["40"].h) + "</div>";
+    if (g28.length) h += '<div class="acd"><h4>Monoblock ' + g28.join(", ") + " — 2,8 kW (staand)</h4>" + wallSvg(49, MM["28"].h, 140) + "</div>"; if (g40.length) h += '<div class="acd"><h4>Monoblock ' + g40.join(", ") + " — 4 kW</h4>" + wallSvg(100, MM["40"].h) + "</div>";
     h += "</div>";
-    var wq = g25.length && g40.length ? "2,5 kW: ≥ 95 cm breed · 4 kW: ≥ 100 cm breed · hoogte ≥ 85 cm" : (g40.length ? "breedte ≥ 100 cm en hoogte ≥ 85 cm" : "breedte ≥ 95 cm en hoogte ≥ 85 cm");
+    var wqp = []; if (g25.length) wqp.push("2,5 kW: ≥ 95 cm breed, ≥ 85 cm hoog"); if (g28.length) wqp.push("2,8 kW staand: ≥ 49 cm breed, ≥ 140 cm hoog"); if (g40.length) wqp.push("4 kW: ≥ 100 cm breed, ≥ 85 cm hoog"); var wq = wqp.join(" · ");
     h += yn("g", "Alle gevraagde monoblocks kunnen op een <b>gevelmuur</b>", "", true);
     h += yn("w", "Er is overal voldoende <b>vrije wand</b>", wq, true);
     return h + stopBox();
   }
   function vM3() {
-    var big = M().sizes.indexOf("40") > -1;
+    var big = M().sizes.indexOf("40") > -1; var kmax = 35; M().sizes.forEach(function (z) { if (MM[z] && MM[z].kg > kmax) kmax = MM[z].kg; });
     var h = '<h2>Nog drie controles</h2><p class="small">Geldt voor elke plaats waar een monoblock komt.</p>';
     h += yn("b", "De <b>achterkant buiten is vrij</b>", "Er hangt of staat niets op de plaats van de boringen.", true);
     h += yn("s", "<b>Stopcontact binnen 5 m</b>", "Zonder zware verbruiker op dezelfde lijn.", true);
-    h += yn("m", "De muur is <b>stevig</b>", "Een toestel weegt " + (big ? "tot 48" : "35") + " kg.", true);
+    h += yn("m", "De muur is <b>stevig</b>", "Een toestel weegt " + (kmax > 35 ? "tot " + kmax : "35") + " kg.", true);
     return h + stopBox();
   }
   function vM4() {
