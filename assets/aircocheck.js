@@ -34,6 +34,7 @@
   var DIRECT_MONO = /[?&]sys=mono\b/.test(location.search);
   // Kraskaart: token uit ?kras= of uit /kras/ (localStorage). Enkel tonen; de server controleert.
   var KRAS = (function () {
+    return null; // kraskaart-actie gestopt (16/11/2026)
     var tok = null; try { tok = new URLSearchParams(location.search).get("kras") || localStorage.getItem("sc_kras_token"); } catch (e) {}
     if (!tok || tok.indexOf(".") < 0) return null;
     try { var p = tok.split(".")[0].replace(/-/g, "+").replace(/_/g, "/"); var o = JSON.parse(atob(p + "===".slice((p.length + 3) % 4))); if (!o || !o.a || !(o.exp > Date.now())) return null; try { localStorage.setItem("sc_kras_token", tok); } catch (e) {} return { a: o.a, token: tok }; } catch (e) { return null; }
