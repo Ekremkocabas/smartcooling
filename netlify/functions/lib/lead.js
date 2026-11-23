@@ -206,7 +206,7 @@ function actionsHtml(d, naam) {
   // tabel-knoppen: Outlook negeert padding op <a>, dus de cel krijgt de kleur en de padding
   const btn = (bg, href, txt) => `<td style="padding:0 8px 0 0"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td bgcolor="${bg}" style="background:${bg};border-radius:8px;padding:12px 20px"><a href="${href}" style="color:#ffffff;text-decoration:none;font-weight:bold;font-size:15px;font-family:Arial,sans-serif;display:inline-block">${txt}</a></td></tr></table></td>`;
   const voornaam = d.voornaam || (naam || "").split(" ")[0] || "";
-  const waText = `Dag ${voornaam}, bedankt voor uw aanvraag via smartcooling.be. Wanneer past het u om kort te bellen voor een gratis plaatsbezoek? Mvg, Smart Cooling`;
+  const waText = `Dag ${voornaam}, bedankt voor uw aanvraag via ${isMetaLead(d) ? "onze advertentie op Facebook/Instagram" : "smartcooling.be"}. Wanneer past het u om kort te bellen voor een gratis plaatsbezoek? Mvg, Smart Cooling`;
   return `<tr><td style="padding:16px 28px 2px"><table role="presentation" cellpadding="0" cellspacing="0"><tr>` +
     (tel ? btn("#1B6FB3", telHref(tel), "&#9742; Bel") + btn("#25D366", "https://wa.me/" + waNumber(tel) + "?text=" + encodeURIComponent(waText), "WhatsApp") : "") +
     (d.email ? btn("#5B6F80", "mailto:" + esc(d.email), "&#9993; Mail") : "") + `</tr></table></td></tr>`;
@@ -221,11 +221,14 @@ function nextStep(ctx) {
   return `bellen of mailen binnen 1–2 werkdagen${wanneer}.`;
 }
 
+// Meta-lead (via meta-leads-sync) of website-aanvraag? Meta zet bron_pagina "Meta-advertentie – …"
+const isMetaLead = (d) => /^Meta-advertentie/i.test((d && d.bron_pagina) || "");
 function leadMailHtml(ctx) {
   const { d, form, naam, mono, s, odoo } = ctx;
   const isMonoSys = !!mono || /monoblock/i.test(d.systeem || "");
   const typeLabel = isMonoSys ? "Monoblock" : "Airco met buitenunit";
-  const bronLabel = form === "aircocheck" ? "Aircocheck" : form === "kras" ? "Kraskaart-actie" : "kort formulier";
+  const meta = isMetaLead(d);
+  const bronLabel = meta ? "Meta-leadformulier" + (d.systeem ? " · " + d.systeem : "") : form === "aircocheck" ? "Aircocheck" : form === "kras" ? "Kraskaart-actie" : "kort formulier";
   const adres = [d.straat ? [d.straat, d.huisnr].filter(Boolean).join(" ") : "", [d.postcode, d.gemeente].filter(Boolean).join(" ")].filter(Boolean).join(", ");
   const klant = mrows([
     ...(ctx.kras && ctx.kras.korting ? [["🎟 Kraskaart", `<span style="font-size:18px;color:#C2691E;font-weight:bold">€ ${esc(ctx.kras.korting)} gewonnen</span> · code <b>${esc(ctx.kras.code)}</b> · nr. ${esc(ctx.kras.nummer)}${ctx.kras.nieuw ? "" : " · <b>al eerder deelgenomen</b>"}`, true]] : ctx.kras && ctx.kras.fout ? [["🎟 Kraskaart", "niet toegekend: " + esc(ctx.kras.fout), true]] : []),
@@ -306,11 +309,11 @@ function leadMailHtml(ctx) {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#EEF3F7"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="620" cellpadding="0" cellspacing="0" style="max-width:620px;width:100%;background:#fff;border-radius:14px;overflow:hidden;font-family:Arial,sans-serif">
 <tr><td style="padding:24px 28px 10px;border-bottom:1px solid #E3EAF0"><img src="${SITE}/assets/logo.png" width="170" alt="Smart Cooling" style="display:block;width:170px;height:auto;border:0"></td></tr>
-<tr><td style="padding:22px 28px 4px"><div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#5B6F80">Nieuwe aanvraag via smartcooling.be</div>
+<tr><td style="padding:22px 28px 4px">${meta ? `<div style="display:inline-block;background:#1877F2;color:#fff;border-radius:6px;padding:4px 10px;font-size:13px;font-weight:bold;letter-spacing:1px">📣 META-ADVERTENTIE (Facebook / Instagram)</div>` : `<div style="display:inline-block;background:#0A1622;color:#fff;border-radius:6px;padding:4px 10px;font-size:13px;font-weight:bold;letter-spacing:1px">🌐 WEBSITE smartcooling.be</div>`}
 <div style="font-size:24px;font-weight:bold;color:#0A1622;margin:6px 0 10px">${esc(naam || "Onbekend")}${d.gemeente ? ` <span style="font-weight:normal;color:#5B6F80">· ${esc(d.gemeente)}</span>` : ""}</div>
 <span style="display:inline-block;background:${tempKleur};color:#fff;border-radius:14px;padding:5px 14px;font-size:13px;font-weight:bold">${esc(temp)}</span> <span style="display:inline-block;background:${isMonoSys ? "#C2691E" : "#1B6FB3"};color:#fff;border-radius:14px;padding:5px 14px;font-size:13px;font-weight:bold">${esc(typeLabel)}</span> <span style="font-size:12px;color:#5B6F80">via ${esc(bronLabel)}</span></td></tr>
 ${actionsHtml(d, naam)}
-${ctx.eerder ? `<tr><td style="padding:12px 28px 0"><div style="background:#FFF4E8;border-left:4px solid #C2691E;border-radius:6px;padding:10px 14px;font-size:14px;color:#0A1622">&#9888; <b>Bekende klant:</b> vroeg al eerder aan op ${esc(ctx.eerder.datum)} &mdash; ${esc(ctx.eerder.naam)}${ctx.eerder.url ? ` (<a href="${esc(ctx.eerder.url)}" style="color:#1B6FB3">lead #${ctx.eerder.id}</a>)` : ""}</div></td></tr>` : ""}
+${ctx.eerder ? `<tr><td style="padding:12px 28px 0"><div style="background:#FFF4E8;border-left:4px solid #C2691E;border-radius:6px;padding:10px 14px;font-size:14px;color:#0A1622">&#9888; <b>Bekende klant:</b> vroeg al eerder aan op ${esc(ctx.eerder.datum)} &mdash; ${esc(ctx.eerder.naam)}${ctx.eerder.url ? ` (<a href="${esc(ctx.eerder.url)}" style="color:#1B6FB3">lead #${ctx.eerder.id}</a>)` : ""}${ctx.rapportOvergeslagen ? `<br><span style="font-size:13px;color:#5B6F80">Adviesrapport niet opnieuw naar de klant gestuurd (al een aanvraag in de laatste 24 u).</span>` : ""}</div></td></tr>` : ""}
 ${nextStep(ctx) ? `<tr><td style="padding:12px 28px 0"><div style="background:#E8F1FA;border-left:4px solid #1B6FB3;border-radius:6px;padding:10px 14px;font-size:14px;color:#0A1622">&#10148; <b>Volgende stap:</b> ${nextStep(ctx)}</div></td></tr>` : ""}
 ${mblock("Klant", klant)}
 ${mblock("Aanvraag", aanvraag)}
@@ -329,11 +332,12 @@ async function sendLeadMail(ctx) {
   const type = (mono || /monoblock/i.test(d.systeem || "")) ? "Monoblock" : "Airco";
   const ok = ctx.odoo && ctx.odoo.leadId;
   const temp = ctx.s ? ctx.s.temp : mono ? "HEET" : shortTemp(d);
-  const prefix = !ok ? "⚠ NIET IN ODOO · " + type : (temp === "HEET" ? "🔥 HEET" : temp === "WARM" ? "🟠 WARM" : "🔵 LAUW") + " · " + type;
+  const meta = isMetaLead(d);
+  const prefix = (meta ? "📣 META · " : "🌐 SITE · ") + (!ok ? "⚠ NIET IN ODOO · " + type : (temp === "HEET" ? "🔥 HEET" : temp === "WARM" ? "🟠 WARM" : "🔵 LAUW") + " · " + type);
   const extra = ctx.kras && ctx.kras.korting ? "🎟 Kraskaart € " + ctx.kras.korting + " · " + ctx.kras.code : form === "kras" ? "🎟 Kraskaart € " + (d.korting || "?") + " · " + (d.code || "") : mono ? eur(mono.totaal_excl) : ctx.s && ctx.s.rooms.length ? ctx.s.rooms.length + (ctx.s.rooms.length === 1 ? " ruimte" : " ruimtes") : "";
   const subject = [prefix, d.naam || naam || "onbekend", d.gemeente, extra, ctx.afstand && ctx.afstand.km != null ? Math.round(ctx.afstand.km) + " km" : ""].filter(Boolean).join(" · ");
   const body = {
-    sender: { name: "Smart Cooling website", email: MAIL_FROM() },
+    sender: { name: meta ? "Smart Cooling META" : "Smart Cooling website", email: MAIL_FROM() },
     to: [{ email: MAIL_TO() }],
     subject, htmlContent: leadMailHtml(ctx),
     tags: ["lead", form],
@@ -399,7 +403,7 @@ async function pushToOdoo(vals, extra, mono, naam) {
   ]);
   if (prev && prev.length) {
     const p = prev[0]; const dt = new Date(p.create_date.replace(" ", "T") + "Z");
-    eerder = { id: p.id, naam: p.name, datum: dt.toLocaleDateString("nl-BE", { timeZone: "Europe/Brussels" }), url: `${URL.replace(/\/$/, "")}/odoo/crm/${p.id}` };
+    eerder = { id: p.id, naam: p.name, ts: dt.getTime(), datum: dt.toLocaleDateString("nl-BE", { timeZone: "Europe/Brussels" }), url: `${URL.replace(/\/$/, "")}/odoo/crm/${p.id}` };
   }
   if (found && found.length) pid = found[0];
   else if (vals.email_from || vals.contact_name) {
@@ -614,7 +618,7 @@ async function processLead(payload, opts) {
       vals = {
         name: `Website aanvraag - ${naam || "onbekend"}`, type: "opportunity", contact_name: naam,
         phone: d.telefoon || "", email_from: d.email || "", street: straat, zip: d.postcode || "", city: d.gemeente || "",
-        description: `<p style="font-size:15px;margin:0 0 6px"><b>AANVRAAG via smartcooling.be</b></p>` +
+        description: `<p style="font-size:15px;margin:0 0 6px"><b>${isMetaLead(d) ? "AANVRAAG via META-advertentie (Facebook / Instagram)" : "AANVRAAG via smartcooling.be (website)"}</b></p>` +
           block("Klant", [row("Naam", ed(naam)), row("Adres", ed([straat, d.postcode, d.gemeente].filter(Boolean).join(", "))), row("Telefoon", ed(d.telefoon)), row("E-mail", ed(d.email)), row("Gewenst belmoment", "<b>" + ed(d.belmoment) + "</b>")]) +
           block("Aanvraag", [row("Type", "<b>" + ed(d.systeem) + "</b>"), row("Aantal airco('s)", ed(d.aantal)), ...(d.ruimtes_m2 ? [row("Grootte per ruimte", ed(d.ruimtes_m2).replace(/\n/g, "<br>"))] : []), row("Type ruimte", ed(ruimte)), row("Gewenste plaatsing", ed(d.plaatsingsdatum)), row("Bericht", ed(d.bericht).replace(/\n/g, "<br>"))]) +
           block("Herkomst", [row("Bronpagina", ed(d.bron_pagina))]),
@@ -637,8 +641,11 @@ async function processLead(payload, opts) {
     console.error("processLead error:", e);
     if (ctx) ctx.odoo = { error: "fout in de functie: " + e.message };
   }
+  // Zelfde klant (e-mail of gsm) al een aanvraag in de laatste 24 u? Dan geen tweede adviesrapport naar de klant (Ekrem 22/11/2026).
+  if (ctx && ctx.eerder && ctx.eerder.ts && Date.now() - ctx.eerder.ts < 24 * 3600 * 1000) ctx.rapportOvergeslagen = true;
   if (ctx) { try { await sendLeadMail(ctx); } catch (e) { console.error("lead-mail failed:", e.message); } }
-  if (ctx && ctx.form !== 'kras') { try { console.log('klantrapport: ' + JSON.stringify(await sendKlantRapport(ctx, { mailFrom: MAIL_FROM(), mailTo: MAIL_TO() }))); } catch (e) { console.error('klantrapport failed: ' + e.message); } }
+  if (ctx && ctx.rapportOvergeslagen) console.log("klantrapport: overgeslagen – klant vroeg al aan in de laatste 24 u (lead #" + ctx.eerder.id + ")");
+  else if (ctx && ctx.form !== 'kras') { try { console.log('klantrapport: ' + JSON.stringify(await sendKlantRapport(ctx, { mailFrom: MAIL_FROM(), mailTo: MAIL_TO() }))); } catch (e) { console.error('klantrapport failed: ' + e.message); } }
   if (ctx && ctx.kras && ctx.kras.korting && ctx.kras.nieuw) { try { await sendKrasKlantMail(ctx); console.log("kras klantmail verstuurd"); } catch (e) { console.error("kras klantmail fout:", e.message); } }
   return { odoo: ctx && ctx.odoo, pogingen: ctx && ctx.pogingen };
 }
