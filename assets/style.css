@@ -352,3 +352,11 @@ h2[id]{scroll-margin-top:96px}
 .proj>p{max-width:760px;margin:0 0 6px}
 .proj .plinks{margin:0 0 4px}
 .proj .rgrid{margin-top:14px}
+/* 2026-11-26: eerste scherm op gsm compacter (logo kleiner, knoppen zichtbaar zonder scrollen) */
+@media(max-width:700px){.hero-c{min-height:auto}.hero-c .wrap{padding-top:22px;padding-bottom:30px}.hero-c .hero-logo{width:min(40vw,160px);margin-bottom:10px}.hero-c .hero-badge{font-size:.78rem;padding:5px 11px}.hero-c h1{font-size:clamp(1.9rem,8.6vw,2.4rem);margin-top:10px}.hero-c .lead{font-size:.98rem;margin-top:8px;line-height:1.45}.hero-c .acts{margin-top:16px}.hero-c .proof{font-size:.84rem;gap:4px 12px;margin-top:16px}}
+/* cookiebalk boven de onderbalk op gsm */
+@media(max-width:959px){#sc-cookie{bottom:calc(78px + env(safe-area-inset-bottom,0px))!important}}
+/* 2026-11-26: gsm-pagina was 419px breed i.p.v. 375px (offerteformulier duwde de kolom open) */
+.two>*,.grid>*,.form,.form *{min-width:0}.form input,.form select,.form textarea{max-width:100%}
+/* 2026-11-26: topbalk op gsm 1 regel (bellen/WhatsApp zitten in de onderbalk) */
+@media(max-width:700px){.topbar .wrap{justify-content:center;min-height:30px}.topbar .wrap>span:first-child{font-size:0}.topbar .wrap>span:first-child .green{font-size:.78rem}.topbar .wrap>span:last-child{display:none}}
