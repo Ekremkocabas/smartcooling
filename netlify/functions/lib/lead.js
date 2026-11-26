@@ -313,7 +313,7 @@ function leadMailHtml(ctx) {
 <div style="font-size:24px;font-weight:bold;color:#0A1622;margin:6px 0 10px">${esc(naam || "Onbekend")}${d.gemeente ? ` <span style="font-weight:normal;color:#5B6F80">· ${esc(d.gemeente)}</span>` : ""}</div>
 <span style="display:inline-block;background:${tempKleur};color:#fff;border-radius:14px;padding:5px 14px;font-size:13px;font-weight:bold">${esc(temp)}</span> <span style="display:inline-block;background:${isMonoSys ? "#C2691E" : "#1B6FB3"};color:#fff;border-radius:14px;padding:5px 14px;font-size:13px;font-weight:bold">${esc(typeLabel)}</span> <span style="font-size:12px;color:#5B6F80">via ${esc(bronLabel)}</span></td></tr>
 ${actionsHtml(d, naam)}
-${ctx.eerder ? `<tr><td style="padding:12px 28px 0"><div style="background:#FFF4E8;border-left:4px solid #C2691E;border-radius:6px;padding:10px 14px;font-size:14px;color:#0A1622">&#9888; <b>Bekende klant:</b> vroeg al eerder aan op ${esc(ctx.eerder.datum)} &mdash; ${esc(ctx.eerder.naam)}${ctx.eerder.url ? ` (<a href="${esc(ctx.eerder.url)}" style="color:#1B6FB3">lead #${ctx.eerder.id}</a>)` : ""}${ctx.rapportOvergeslagen ? `<br><span style="font-size:13px;color:#5B6F80">Adviesrapport niet opnieuw naar de klant gestuurd (al een aanvraag in de laatste 24 u).</span>` : ""}</div></td></tr>` : ""}
+${ctx.eerder ? `<tr><td style="padding:12px 28px 0"><div style="background:#FDECEC;border-left:6px solid #C0392B;border-radius:6px;padding:12px 14px;font-size:14px;color:#0A1622"><div style="font-size:18px;font-weight:bold;color:#C0392B;margin-bottom:4px">&#128222; OPNIEUW INGEVULD &ndash; BEL DRINGEND</div>Deze klant vulde al eerder in op <b>${esc(ctx.eerder.datum)}${ctx.eerder.uur ? " om " + esc(ctx.eerder.uur) : ""}</b>${ctx.eerder.aantal > 1 ? ` (al <b>${ctx.eerder.aantal}×</b> eerder)` : ""} en heeft nog interesse. &mdash; ${esc(ctx.eerder.naam)}${ctx.eerder.url ? ` (<a href="${esc(ctx.eerder.url)}" style="color:#1B6FB3">lead #${ctx.eerder.id}</a>)` : ""}${ctx.rapportOvergeslagen ? `<br><span style="font-size:13px;color:#5B6F80">Adviesrapport niet opnieuw naar de klant gestuurd (al een aanvraag in de laatste 24 u).</span>` : ""}</div></td></tr>` : ""}
 ${nextStep(ctx) ? `<tr><td style="padding:12px 28px 0"><div style="background:#E8F1FA;border-left:4px solid #1B6FB3;border-radius:6px;padding:10px 14px;font-size:14px;color:#0A1622">&#10148; <b>Volgende stap:</b> ${nextStep(ctx)}</div></td></tr>` : ""}
 ${mblock("Klant", klant)}
 ${mblock("Aanvraag", aanvraag)}
@@ -335,9 +335,11 @@ async function sendLeadMail(ctx) {
   const meta = isMetaLead(d);
   const prefix = (meta ? "📣 META · " : "🌐 SITE · ") + (!ok ? "⚠ NIET IN ODOO · " + type : (temp === "HEET" ? "🔥 HEET" : temp === "WARM" ? "🟠 WARM" : "🔵 LAUW") + " · " + type);
   const extra = ctx.kras && ctx.kras.korting ? "🎟 Kraskaart € " + ctx.kras.korting + " · " + ctx.kras.code : form === "kras" ? "🎟 Kraskaart € " + (d.korting || "?") + " · " + (d.code || "") : mono ? eur(mono.totaal_excl) : ctx.s && ctx.s.rooms.length ? ctx.s.rooms.length + (ctx.s.rooms.length === 1 ? " ruimte" : " ruimtes") : "";
-  const subject = [prefix, d.naam || naam || "onbekend", d.gemeente, extra, ctx.afstand && ctx.afstand.km != null ? Math.round(ctx.afstand.km) + " km" : ""].filter(Boolean).join(" · ");
+  const herhaal = ctx.eerder ? "🔁 OPNIEUW INGEVULD (eerder " + ctx.eerder.datum + ") – BEL DRINGEND · " : "";
+  const subject = [herhaal + prefix, d.naam || naam || "onbekend", d.gemeente, extra, ctx.afstand && ctx.afstand.km != null ? Math.round(ctx.afstand.km) + " km" : ""].filter(Boolean).join(" · ");
   const body = {
     sender: { name: meta ? "Smart Cooling META" : "Smart Cooling website", email: MAIL_FROM() },
+    ...(ctx.eerder ? { headers: { "X-Priority": "1", "Importance": "high" } } : {}),
     to: [{ email: MAIL_TO() }],
     subject, htmlContent: leadMailHtml(ctx),
     tags: ["lead", form],
@@ -403,7 +405,10 @@ async function pushToOdoo(vals, extra, mono, naam) {
   ]);
   if (prev && prev.length) {
     const p = prev[0]; const dt = new Date(p.create_date.replace(" ", "T") + "Z");
-    eerder = { id: p.id, naam: p.name, ts: dt.getTime(), datum: dt.toLocaleDateString("nl-BE", { timeZone: "Europe/Brussels" }), url: `${URL.replace(/\/$/, "")}/odoo/crm/${p.id}` };
+    const uur = dt.toLocaleTimeString("nl-BE", { timeZone: "Europe/Brussels", hour: "2-digit", minute: "2-digit" });
+    eerder = { id: p.id, naam: p.name, ts: dt.getTime(), datum: dt.toLocaleDateString("nl-BE", { timeZone: "Europe/Brussels" }), uur, url: `${URL.replace(/\/$/, "")}/odoo/crm/${p.id}` };
+    // hoeveel keer al eerder ingevuld (Ekrem 26/11: opnieuw ingevuld = dringend bellen)
+    try { eerder.aantal = await rpc("object", "execute_kw", [DB, uid, KEY, "crm.lead", "search_count", [[...prevDom, ["active", "in", [true, false]]]]]); } catch (e) { eerder.aantal = 1; }
   }
   if (found && found.length) pid = found[0];
   else if (vals.email_from || vals.contact_name) {
