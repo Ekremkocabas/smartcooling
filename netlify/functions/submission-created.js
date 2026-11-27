@@ -18,7 +18,7 @@ exports.handler = async (event) => {
     if (r.status === 202 || r.status === 200) { console.log("lead doorgegeven aan background (" + r.status + ")"); return { statusCode: 200, body: "queued" }; }
     console.warn("background weigerde (" + r.status + "), directe verwerking");
   } catch (e) { console.warn("background niet bereikbaar, directe verwerking:", e.message); }
-  const out = await processLead(payload, { krasStore: krasStore(event), attempts: 1, odooTimeout: 8000 });
+  const out = await processLead(payload, { krasStore: krasStore(event), attempts: 1, odooTimeout: 8000, afpAttempts: 1, afpTimeout: 3000 });
   return { statusCode: 200, body: JSON.stringify(out) };
 };
 exports._token = token;

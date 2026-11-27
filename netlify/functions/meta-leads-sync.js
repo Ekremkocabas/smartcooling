@@ -13,6 +13,12 @@
 // Dubbels: elke lead krijgt "Meta lead-ID: <id>" in de beschrijving; staat die al in Odoo, dan wordt hij overgeslagen.
 
 const { processLead } = require("./lib/lead.js");
+// v4 (27/11/2026): testweek AircoFlowPro — na de volledige Odoo-ronde gaan dezelfde leads ook naar de AFP-webhook (lib/afp.js,
+//   env AFP_LEADS_URL + AFP_LEADS_KEY; ontbreken ze, dan verandert er niets). Odoo en de lead-mail blijven exact zoals ze waren.
+//   Netlify Blobs "afp-leads" onthoudt welke Meta-leads al in AFP staan (lukt AFP niet, dan volgende run opnieuw).
+let afp = null;
+try { afp = require("./lib/afp.js"); } catch (e) { console.error("afp module niet geladen (Odoo werkt gewoon): " + e.message); }
+function afpStore(event) { try { const { getStore, connectLambda } = require("@netlify/blobs"); if (event) connectLambda(event); return getStore("afp-leads"); } catch (e) { console.warn("afp-opslag niet beschikbaar:", e.message); return null; } }
 const GRAPH = "https://graph.facebook.com/v21.0";
 const LOOKBACK_H = 48; // elke run kijkt 48 u terug; dubbels worden via Odoo herkend
 
@@ -175,7 +181,9 @@ async function repairLead(call, metaId, p) {
   return true;
 }
 
-exports.handler = async () => {
+exports.handler = async (event) => {
+  const start = Date.now();
+  const kandidaten = []; // voor AFP, pas na de Odoo-ronde
   const token = process.env.META_ACCESS_TOKEN, pageId = process.env.META_PAGE_ID;
   const formIds = (process.env.META_FORM_IDS || "").split(",").map((s) => s.trim()).filter(Boolean);
   if (!token || !pageId || !formIds.length) { console.log("meta-leads-sync: env vars ontbreken, niets gedaan"); return { statusCode: 200 }; }
@@ -201,8 +209,11 @@ exports.handler = async () => {
         if ((lead.field_data || []).some((f) => (f.values || []).some((v) => /<test lead:|^test@meta\.com$/i.test(v)))) { test++; continue; }
         try {
           const payload = toPayload(lead, form.name || formId);
+          const kandidaat = { lead, formName: form.name || formId, formId, payload, nieuwInOdoo: false };
+          kandidaten.push(kandidaat);
           if (await odooHasLead(call, lead.id)) { await repairLead(call, lead.id, payload).catch((e) => console.warn("herstel mislukt:", e.message)); overgeslagen++; continue; }
-          const out = await processLead(payload, { attempts: 1, odooTimeout: 12000 });
+          kandidaat.nieuwInOdoo = true;
+          const out = await processLead(payload, { attempts: 1, odooTimeout: 12000, afp: false });
           // titel in Odoo: "Meta Mitsubishi MSZ-HR - naam" i.p.v. "Website aanvraag - naam"
           const leadId = out && out.odoo && out.odoo.leadId;
           if (leadId) await call("crm.lead", "write", [[leadId], { name: payload.data.lead_titel }]).catch((e) => console.warn("titel niet aangepast:", e.message));
@@ -213,5 +224,11 @@ exports.handler = async () => {
     }
   }
   console.log(`meta-leads-sync klaar: ${nieuw} nieuw, ${overgeslagen} al in Odoo, ${test} Meta-testlead(s) genegeerd`);
-  return { statusCode: 200, body: JSON.stringify({ nieuw, overgeslagen }) };
+  // AFP: na Odoo, binnen de tijd van de geplande functie (30 s), nooit een fout naar buiten
+  let afpRes = null;
+  if (afp && afp.ingesteld() && kandidaten.length) {
+    try { afpRes = await afp.stuurMetaLeads(kandidaten, { store: afpStore(event), deadline: start + Number(process.env.AFP_BUDGET_MS || 25000) }); }
+    catch (e) { console.error("AFP fout (Odoo niet geraakt):", e.message); }
+  }
+  return { statusCode: 200, body: JSON.stringify({ nieuw, overgeslagen, ...(afpRes ? { afp: afpRes } : {}) }) };
 };

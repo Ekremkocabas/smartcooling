@@ -1,4 +1,4 @@
-// netlify/functions/lib/lead.js  (v11 — gedeelde logica: Odoo lead/offerte + lead-mail via Brevo)
+// netlify/functions/lib/lead.js  (v12 — gedeelde logica: Odoo lead/offerte + lead-mail via Brevo; v12: + AFP-webhook, zie lib/afp.js)
 // Gebruikt door submission-created.js (relay) en lead-process-background.js (3 pogingen, tot 15 min).
 // v10: stuurt na elke aanvraag een nette lead-mail naar info@smartcooling.be via Brevo (BREVO_API_KEY),
 //      ook als Odoo faalt (dan staat "NIET in Odoo gezet" in de mail). Vervangt de ruwe Netlify-formnotificatie.
@@ -20,6 +20,9 @@
 const kras = require("./kras.js");
 let sendKlantRapport = async function () { return { skipped: 'module niet geladen' }; };
 try { sendKlantRapport = require('./klantrapport').sendKlantRapport; } catch (e) { console.error('klantrapport module niet geladen: ' + e.message); }
+// AFP (testweek naast Odoo, 27/11/2026): zelfde lead ook naar de lead-webhook van AircoFlowPro. Enkel als AFP_LEADS_URL + AFP_LEADS_KEY bestaan.
+let afp = null;
+try { afp = require("./afp.js"); } catch (e) { console.error("afp module niet geladen (Odoo/mail werken gewoon): " + e.message); }
 const WEBSITE_SOURCE_ID = 18;   // utm.source "Website"
 const TEAM_SALES = 1;           // Verkoop (Airco)
 const TEAM_MONOBLOCK = 4;       // Monoblock
@@ -652,6 +655,12 @@ async function processLead(payload, opts) {
   if (ctx && ctx.rapportOvergeslagen) console.log("klantrapport: overgeslagen – klant vroeg al aan in de laatste 24 u (lead #" + ctx.eerder.id + ")");
   else if (ctx && ctx.form !== 'kras') { try { console.log('klantrapport: ' + JSON.stringify(await sendKlantRapport(ctx, { mailFrom: MAIL_FROM(), mailTo: MAIL_TO() }))); } catch (e) { console.error('klantrapport failed: ' + e.message); } }
   if (ctx && ctx.kras && ctx.kras.korting && ctx.kras.nieuw) { try { await sendKrasKlantMail(ctx); console.log("kras klantmail verstuurd"); } catch (e) { console.error("kras klantmail fout:", e.message); } }
-  return { odoo: ctx && ctx.odoo, pogingen: ctx && ctx.pogingen };
+  // AFP pas NA Odoo en de mails: een fout of traagheid bij AFP raakt die nooit. opts.afp === false: de aanroeper doet AFP zelf (Meta).
+  let afpRes = null;
+  if (ctx && afp && opts.afp !== false && afp.ingesteld()) {
+    try { afpRes = await afp.stuurWebsiteLead(payload, { attempts: opts.afpAttempts || 3, timeoutMs: opts.afpTimeout || 10000, waitMs: opts.afpWaitMs || (process.env.FAST_TEST ? [50, 50] : [2000, 5000]), score }); }
+    catch (e) { console.error("AFP fout (Odoo/mail niet geraakt):", e.message); }
+  }
+  return { odoo: ctx && ctx.odoo, pogingen: ctx && ctx.pogingen, ...(afpRes ? { afp: afpRes } : {}) };
 }
 module.exports = { processLead, score, withTimeout };

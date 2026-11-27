@@ -2,6 +2,9 @@
   "name": "smartcooling-site",
   "private": true,
   "description": "Statische site + Netlify Functions (smartcooling.be)",
+  "scripts": {
+    "test": "node --test netlify/tests/*.test.js"
+  },
   "dependencies": {
     "@netlify/blobs": "^8.2.0"
   }
