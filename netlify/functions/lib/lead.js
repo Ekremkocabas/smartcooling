@@ -635,6 +635,7 @@ async function processLead(payload, opts) {
       };
     }
 
+    ctx.titel = d.lead_titel || vals.name || ""; ctx.beschrijving = vals.description || vals.descTop || ""; // voor AFP: zelfde titel en beschrijving als Odoo
     // Odoo: meerdere pogingen (Odoo Online kan traag opstarten); rijafstand parallel
     const afstP = withTimeout(afstand(d), 8000, "Afstand").catch((e) => { console.warn("afstand niet berekend:", e.message); return null; });
     let res = null, lastErr = "";
@@ -658,9 +659,9 @@ async function processLead(payload, opts) {
   // AFP pas NA Odoo en de mails: een fout of traagheid bij AFP raakt die nooit. opts.afp === false: de aanroeper doet AFP zelf (Meta).
   let afpRes = null;
   if (ctx && afp && opts.afp !== false && afp.ingesteld()) {
-    try { afpRes = await afp.stuurWebsiteLead(payload, { attempts: opts.afpAttempts || 3, timeoutMs: opts.afpTimeout || 10000, waitMs: opts.afpWaitMs || (process.env.FAST_TEST ? [50, 50] : [2000, 5000]), score }); }
+    try { afpRes = await afp.stuurWebsiteLead(payload, { titel: ctx.titel, beschrijving: ctx.beschrijving, attempts: opts.afpAttempts || 3, timeoutMs: opts.afpTimeout || 10000, waitMs: opts.afpWaitMs || (process.env.FAST_TEST ? [50, 50] : [2000, 5000]), score }); }
     catch (e) { console.error("AFP fout (Odoo/mail niet geraakt):", e.message); }
   }
-  return { odoo: ctx && ctx.odoo, pogingen: ctx && ctx.pogingen, ...(afpRes ? { afp: afpRes } : {}) };
+  return { odoo: ctx && ctx.odoo, pogingen: ctx && ctx.pogingen, ...(afpRes ? { afp: afpRes } : {}), ...(opts.afp === false && ctx ? { beschrijving: ctx.beschrijving } : {}) };
 }
 module.exports = { processLead, score, withTimeout };

@@ -39,7 +39,7 @@ const WEB = (id, extra = {}) => ({
 const META = (id, extra = []) => ({
   id, created_time: "2026-11-27T09:00:00+0000", ad_name: "Fictieve advertentie", campaign_name: "Fictieve campagne najaar",
   field_data: [{ name: "volledige_naam", values: ["Fictief Meta " + id.slice(-3)] }, { name: "telefoonnummer", values: ["+32470" + id.slice(-6)] },
-    { name: "e-mailadres", values: [`meta${id.slice(-4)}@voorbeeld.test`] }, { name: "postcode", values: ["3500"] },
+    { name: "e-mailadres", values: [`meta${id.slice(-10)}@voorbeeld.test`] }, { name: "postcode", values: ["3500"] },
     { name: "hoeveel_ruimtes_wilt_u_koelen?", values: ["2_ruimtes"] }, { name: "ruimte_1", values: ["Living"] }, { name: "ruimte_1_grootte", values: ["20_–_30_m²"] },
     { name: "wanneer_wilt_u_de_airco_laten_plaatsen?", values: ["zo_snel_mogelijk"] }, ...extra],
 });
@@ -148,6 +148,7 @@ test("Meta-ronde met opslag: gekende leads overslaan, mislukte volgende run opni
 
 // ---------------- integratie: lokale AFP e2e-server + nep-Odoo ----------------
 const I = process.env.AFP_TEST_BASE && process.env.AFP_TEST_TOKEN && process.env.AFP_TEST_WEBHOOK && process.env.AFP_TEST_KEY && process.env.ODOO_TEST_URL;
+// Let op: de webhook remt 12 aanvragen per minuut per IP (ook lokaal). Deze reeks doet er 11: start de AFP-testserver vers per run.
 const afpGet = async (p) => (await echteFetch(process.env.AFP_TEST_BASE + "/api" + p, { headers: { Authorization: "Bearer " + process.env.AFP_TEST_TOKEN } })).json();
 const kaartenVan = async (q) => (await afpGet("/leads/zoek?q=" + encodeURIComponent(q))).items || [];
 const odooStatus = async () => (await echteFetch(process.env.ODOO_TEST_URL + "/_nep/status")).json();
@@ -246,3 +247,125 @@ test("INTEGRATIE Meta-sync: AFP onbereikbaar → Odoo-ronde lukt, functie geeft 
   assert.equal(r.afp.fout, 1);
   delete process.env.AFP_BUDGET_MS;
 });
+
+// ---------------- Notities: zelfde inhoud als de Odoo-beschrijving ----------------
+test("html van de Odoo-beschrijving → platte tekst met dezelfde blokken en rijen", () => {
+  const afp = fris("lib/afp.js");
+  const t = afp.htmlNaarTekst('<p style="x"><b>KOP</b> &nbsp; <span style="y">HEET</span></p><h4 style="m">Klant</h4><table><tr><td style="p">Naam</td><td>Jan &amp; An</td></tr>' +
+    '<tr><td>Grootte</td><td>Living: 20–30 m²<br>Slaapkamer: &lt; 20 m²</td></tr></table><h4>Herkomst</h4><table><tr><td>Bron</td><td>/x/</td></tr></table>');
+  assert.equal(t, "KOP   HEET\n\n— Klant —\nNaam: Jan & An\nGrootte: Living: 20–30 m²\n  Slaapkamer: < 20 m²\n\n— Herkomst —\nBron: /x/");
+});
+
+// Onafhankelijke lezer van de Odoo-html (voor de vergelijking): [{blok, label, waarde}]
+const kaal = (h) => String(h).replace(/<br\s*\/?>/gi, " ").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
+function odooRijen(html) {
+  const uit = [];
+  for (const b of String(html).matchAll(/<h4[^>]*>([\s\S]*?)<\/h4>\s*<table[^>]*>([\s\S]*?)<\/table>/g))
+    for (const r of b[2].matchAll(/<tr>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<\/tr>/g)) uit.push({ blok: kaal(b[1]), label: kaal(r[1]), waarde: kaal(r[2]) });
+  return uit;
+}
+// Zelfde rij in de AFP-notitie: binnen het blok "— blok —" de regel "label: waarde" (met vervolgregels)
+function afpWaarde(notitie, blok, label) {
+  const delen = notitie.split(/\n— (.+?) —\n/); // [kop, blok1, tekst1, blok2, tekst2, …]
+  for (let i = 1; i < delen.length; i += 2) {
+    if (delen[i] !== blok) continue;
+    const regels = delen[i + 1].split("\n");
+    const s = regels.findIndex((r) => r.startsWith(label + ": ") || r === label + ":");
+    if (s < 0) continue;
+    let w = regels[s].slice(label.length + 1);
+    for (let j = s + 1; j < regels.length && /^ {2}/.test(regels[j]); j++) w += " " + regels[j];
+    return w.replace(/\s+/g, " ").trim();
+  }
+  return null;
+}
+const VERSLAG = [];
+function naastElkaar(naam, odooHtml, notitie) {
+  const rijen = odooRijen(odooHtml);
+  assert.ok(rijen.length >= 5, naam + ": Odoo-beschrijving heeft rijen (" + rijen.length + ")");
+  VERSLAG.push(`\n### ${naam}\n\n| Blok | Veld | In Odoo (beschrijving) | In AFP (Notities) | Gelijk |\n|---|---|---|---|---|`);
+  let fout = 0;
+  for (const r of rijen) {
+    const a = afpWaarde(notitie, r.blok, r.label);
+    const ok = a === r.waarde; if (!ok) fout++;
+    VERSLAG.push(`| ${r.blok} | ${r.label} | ${r.waarde.replace(/\|/g, "/")} | ${String(a).replace(/\|/g, "/")} | ${ok ? "ja" : "**NEE**"} |`);
+  }
+  const kop = kaal((String(odooHtml).match(/^<p[^>]*>([\s\S]*?)<\/p>/) || [])[1] || "");
+  if (kop) { const ok = notitie.replace(/\s+/g, " ").includes(kop); if (!ok) fout++; VERSLAG.push(`| (kop) | — | ${kop} | ${ok ? kop : "ontbreekt"} | ${ok ? "ja" : "**NEE**"} |`); }
+  assert.equal(fout, 0, naam + ": elk veld van de Odoo-beschrijving staat gelijk in de AFP-notitie");
+  return rijen.length;
+}
+const odooLead = async (id) => (await odooStatus()).leads.find((l) => l.id === id);
+const uniek = () => "047" + String(Date.now()).slice(-7);
+
+test("INTEGRATIE Notities: Odoo-beschrijving en AFP-notitie naast elkaar (website offerte, aircocheck, monoblock) + klant op de klant", { skip: !I }, async () => {
+  odooEnv(); afpAan();
+  const { processLead } = fris("lib/lead.js");
+  const gevallen = [
+    ["Website-formulier offerte", (tel) => WEB("cmp-" + tel, { telefoon: tel, email: `cmp.${tel}@voorbeeld.test`, bericht: "Graag een offerte voor <2 ruimtes> & de zolder.\nBel na 17 u." })],
+    ["Website Aircocheck (airco met buitenunit)", (tel) => ({ id: "ac-" + tel, created_at: "2026-11-27T10:00:00.000Z", form_name: "aircocheck", data: {
+      voornaam: "Fictief", naam: "Check " + tel, gsm: tel, email: `ac.${tel}@voorbeeld.test`, straat: "Testlaan 4", postcode: "3500", gemeente: "Hasselt", dagdeel: "Voormiddag",
+      systeem: "Airco met buitenunit", locatie: "Woning", ruimtes: "Living (30 m²) | Slaapkamer (14 m²)", ruimtes_json: JSON.stringify([{ type: "Living", m2: "30 m²", kw: 3.5 }, { type: "Slaapkamer", m2: "14 m²", kw: 2.0 }]),
+      buitenunits: "1", wensen: "Stil, Bediening via app", verwarming: "Bijverwarmen", bron_pagina: "/aircocheck/", landingspagina: "/airco/hasselt/", apparaat: "mobiel", duur_sec: "185" } })],
+    ["Website Aircocheck monoblock (richtprijs getoond)", (tel) => ({ id: "mo-" + tel, created_at: "2026-11-27T10:00:00.000Z", form_name: "aircocheck", data: {
+      voornaam: "Fictief", naam: "Mono " + tel, gsm: tel, email: `mo.${tel}@voorbeeld.test`, straat: "Monoweg 2", postcode: "3600", gemeente: "Genk", dagdeel: "Avond", systeem: "Monoblock",
+      mono_checks: "Buitenmuur: ja | Stopcontact: ja", mono_extras: "Wifi-module", bron_pagina: "/monoblock-airco/", landingspagina: "/monoblock-airco/", apparaat: "pc", duur_sec: "120",
+      mono_json: JSON.stringify({ units: [{ nr: 1, model: "Fictief Polar 2,5", m2: "20 m²", kw: "2,5 kW", actief: true, prijs: 1490 }], lines: [{ t: "Toestel", p: 1490 }, { t: "Plaatsing", p: 250 }], totaal_excl: 1740 }) } })],
+  ];
+  for (const [naam, maak] of gevallen) {
+    const tel = uniek(); const p = maak(tel);
+    const r = await processLead(p, { attempts: 1, odooTimeout: 5000, waitMs: [10] });
+    assert.ok(r.odoo && r.odoo.leadId && r.afp && r.afp.nieuw, naam + ": Odoo + AFP");
+    const o = await odooLead(r.odoo.leadId);
+    const d = await afpGet("/leads/kaarten/" + r.afp.kaart_id);
+    assert.equal(d.notities.split("\n")[0], o.name, naam + ": eerste regel van de notitie = titel in Odoo");
+    naastElkaar(naam, o.description, d.notities);
+    // klantgegevens op de klant zelf (niet enkel in de notitie)
+    const dd = p.data;
+    assert.equal(d.klant.naam, [dd.voornaam, dd.naam].join(" "), naam + ": naam op de klant");
+    assert.equal(d.klant.telefoon.replace(/\s/g, ""), "+32" + tel.slice(1), naam + ": telefoon +32 op de klant");
+    assert.equal(d.klant.email, dd.email, naam + ": e-mail op de klant");
+    assert.equal(d.klant.straat, [dd.straat, dd.huisnr].filter(Boolean).join(" "), naam + ": straat op de klant");
+    assert.equal(d.klant.postcode, dd.postcode); assert.equal(d.klant.gemeente, dd.gemeente, naam + ": gemeente op de klant");
+    const kl = await afpGet("/customers/" + d.klant.id);
+    assert.equal(kl.gemeente, dd.gemeente, naam + ": ook op de klantkaart");
+    await new Promise((x) => setTimeout(x, 3));
+  }
+});
+
+test("INTEGRATIE Notities Meta: nieuwe lead én lead die al in Odoo stond — notitie = Odoo-beschrijving", { skip: !I }, async () => {
+  odooEnv(); afpAan();
+  Object.assign(process.env, { META_ACCESS_TOKEN: "nep", META_PAGE_ID: "111", META_FORM_IDS: "222" });
+  const sync = fris("meta-leads-sync.js");
+  const t0 = String(Date.now()).slice(-12), id1 = "6" + t0 + "61", id2 = "5" + t0 + "52";
+  const extra = [{ name: "straat_en_nummer", values: ["Metaweg 7"] }, { name: "plaats", values: ["Hasselt"] }, { name: "wanneer_mogen_we_u_bellen?", values: ["na_17u"] }, { name: "opmerking", values: ["Fictieve vraag over premie"] }];
+  // (a) nieuw via de geplande functie
+  graphLeads = [META(id1, extra)];
+  const r1 = JSON.parse((await sync.handler({})).body);
+  assert.equal(r1.nieuw, 1); assert.equal(r1.afp.verstuurd, 1);
+  const tel1 = "+32470" + id1.slice(-6);
+  const k1 = (await kaartenVan(tel1))[0]; const d1 = await afpGet("/leads/kaarten/" + k1.id);
+  const o1 = (await odooStatus()).leads.find((l) => String(l.description).includes("Meta lead-ID: " + id1));
+  assert.equal(d1.notities.split("\n")[0], o1.name, "titel zoals in Odoo: " + o1.name);
+  assert.match(o1.name, /^Meta Mitsubishi MSZ-HR - Fictief Meta/);
+  naastElkaar("Meta-leadformulier (nieuw, via meta-leads-sync)", o1.description, d1.notities);
+  for (const stuk of ["Campagne: Fictieve campagne najaar", "Advertentie: Fictieve advertentie", "Formulier: Fictief | NL | Mitsubishi MSZ-HR", "Meta lead-ID: " + id1, "opmerking: Fictieve vraag over premie"])
+    assert.ok(d1.notities.replace(/\n {2}/g, "\n").includes(stuk), "notitie bevat: " + stuk);
+  assert.equal(d1.klant.telefoon.replace(/\s/g, ""), tel1); assert.equal(d1.klant.straat, "Metaweg 7"); assert.equal(d1.klant.postcode, "3500"); assert.equal(d1.klant.gemeente, "Hasselt");
+  assert.equal(d1.klant.email, `meta${id1.slice(-10)}@voorbeeld.test`); assert.equal(d1.bron, "Meta");
+  // (b) stond al in Odoo (AFP lukte eerder niet / lead van vóór de koppeling): beschrijving wordt uit Odoo gelezen
+  const lead2 = META(id2, extra); const p2 = sync._test.toPayload(lead2, "Fictief | NL | Mitsubishi MSZ-HR");
+  const { processLead } = fris("lib/lead.js");
+  const uit = await processLead(p2, { attempts: 1, odooTimeout: 5000, waitMs: [10], afp: false });
+  assert.ok(uit.odoo.leadId && !uit.afp, "enkel in Odoo");
+  const afp = fris("lib/afp.js");
+  const opslag = new Map(); const store = { list: async () => ({ blobs: [...opslag.keys()].map((key) => ({ key })) }), set: async (k, v) => opslag.set(k, v) };
+  const call = await sync._test.odoo();
+  const r2 = await afp.stuurMetaLeads([{ lead: lead2, formName: "Fictief | NL | Mitsubishi MSZ-HR", formId: "222", payload: p2, nieuwInOdoo: false }], { store, beschrijving: sync._test.odooBeschrijving(call) });
+  assert.equal(r2.verstuurd, 1); assert.ok(opslag.has("meta-" + id2), "onthouden: volgende run niet opnieuw");
+  const d2 = await afpGet("/leads/kaarten/" + (await kaartenVan("+32470" + id2.slice(-6)))[0].id);
+  naastElkaar("Meta-leadformulier (stond al in Odoo, later naar AFP)", (await odooLead(uit.odoo.leadId)).description, d2.notities);
+  const r3 = await afp.stuurMetaLeads([{ lead: lead2, formName: "F", formId: "222", payload: p2, nieuwInOdoo: false }], { store });
+  assert.equal(r3.overgeslagen, 1, "tweede run: niets verstuurd");
+});
+
+test.after(() => { if (process.env.AFP_TEST_VERGELIJK && VERSLAG.length) require("fs").writeFileSync(process.env.AFP_TEST_VERGELIJK, "# Odoo-beschrijving en AFP-notitie naast elkaar (fictieve testgegevens)\n" + VERSLAG.join("\n") + "\n"); });

@@ -38,6 +38,30 @@ function regels(paren) {
   return [...uit.slice(0, MAX_ITEMS - 1), { label: "Overige velden", waarde: rest.slice(0, MAX_WAARDE) }];
 }
 
+// ---------- Notities: dezelfde beschrijving als in Odoo, als platte tekst ----------
+// De notitie wordt gemaakt UIT de Odoo-beschrijving zelf (de html die lib/lead.js naar Odoo stuurt): zelfde blokken
+// (Klant / Aanvraag / Herkomst …), zelfde rijen, zelfde waarden. Er kan dus niets minder in staan dan in Odoo.
+const ENT = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", euro: "€", ndash: "–", mdash: "—", middot: "·", plusmn: "±", sup2: "²", eacute: "é", euml: "ë", iuml: "ï" };
+function htmlNaarTekst(html) {
+  return String(html || "")
+    .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n  ")
+    .replace(/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/gi, (_, t) => "\n\n— " + t.replace(/<[^>]+>/g, "").trim() + " —\n")
+    .replace(/<\/t[dh]>\s*<t[dh][^>]*>/gi, ": ")
+    .replace(/<\/(tr|p|table|div|li|ul|ol)>|<hr[^>]*>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n))).replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+    .replace(/&([a-z0-9]+);/gi, (m, n) => (n.toLowerCase() in ENT ? ENT[n.toLowerCase()] : m))
+    .replace(/\u00a0/g, " ").split("\n").map((r) => (/^ {2,}$/.test(r) ? "  " : r.replace(/[ \t]+$/g, "")).replace(/^[ \t]+(?! )/, (x) => (x.length >= 2 ? "  " : ""))).join("\n")
+    .replace(/\n{3,}/g, "\n\n").trim();
+}
+const ontvangen = (iso) => { const d = iso ? new Date(iso) : new Date(); const x = isNaN(d) ? new Date() : d; return x.toLocaleString("nl-BE", { timeZone: "Europe/Brussels", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).replace(",", ""); };
+// titel = de titel van de lead in Odoo; html = de Odoo-beschrijving; zonder html (Odoo niet leesbaar) valt het terug op de regels van Aanvraag.
+function notitie(titel, html, wanneer, regelsTerugval) {
+  const tekst = html ? htmlNaarTekst(html) : (regelsTerugval || []).filter((x) => x.label !== "Titel").map((x) => `${x.label}: ${String(x.waarde).replace(/\n/g, "\n  ")}`).join("\n");
+  return [titel, "Ontvangen: " + ontvangen(wanneer), "", tekst].join("\n").slice(0, 20000);
+}
+
 // ---------- website (Netlify-formulieren offerte / aircocheck / kras) ----------
 const LABELS = {
   voornaam: "Voornaam", naam: "Naam", telefoon: "Telefoon", gsm: "GSM", email: "E-mail", straat: "Straat", huisnr: "Huisnummer",
@@ -99,10 +123,14 @@ function vanWebsite(payload, extra) {
   if (extra && extra.advies) paren.push(...extra.advies);
   HERKOMST.forEach(neem);
   const straat = [d.straat, d.huisnr].filter(Boolean).join(" ").trim();
+  const titel = (extra && extra.titel) || titelWebsite(form, d);
+  if (extra && extra.titel) paren[0][1] = titel;
+  const rg = regels(paren);
   return {
+    notities: notitie(titel, extra && extra.beschrijving, payload.created_at, rg),
     naam: volNaam(d) || d.naam_vol || d.email || "Onbekend", telefoon: txt(d.telefoon || d.gsm).slice(0, 40), email: txt(d.email).slice(0, 160),
     straat: straat.slice(0, 160), postcode: txt(d.postcode).slice(0, 12), gemeente: txt(d.gemeente).slice(0, 80),
-    bron: meta ? "Meta" : "Website", externe_id: externeIdWebsite(payload), aanvraag: regels(paren),
+    bron: meta ? "Meta" : "Website", externe_id: externeIdWebsite(payload), aanvraag: rg,
     richtprijs: m && m.totaal_excl != null ? `€ ${m.totaal_excl} excl. btw` : (extra && extra.band ? `${extra.band} (incl. plaatsing)` : ""),
     monoblock: Boolean(m) || /monoblock/i.test(d.systeem || ""),
     toestemming: true, // het formulier zegt "Door te verzenden gaat u akkoord met ons privacybeleid"
@@ -111,7 +139,7 @@ function vanWebsite(payload, extra) {
 
 // ---------- Meta-leadformulier (meta-leads-sync) ----------
 // lead = ruwe Meta-lead {id, created_time, field_data, ad_name, campaign_name}; p = toPayload() van meta-leads-sync
-function vanMeta(lead, formName, formId, p) {
+function vanMeta(lead, formName, formId, p, beschrijving) {
   const d = (p && p.data) || {};
   const paren = [["Titel", d.lead_titel], ["Herkomst", "Meta-advertentie (Facebook / Instagram)"], ["Formulier", formName],
     ["Formulier-ID", formId && formId !== formName ? formId : ""], ["Advertentie", lead.ad_name], ["Campagne", lead.campaign_name],
@@ -119,10 +147,12 @@ function vanMeta(lead, formName, formId, p) {
     ["Grootte per ruimte", d.ruimtes_m2], ["Gewenste plaatsing", d.plaatsingsdatum], ["Gewenst belmoment", d.belmoment]];
   // alle antwoorden van het formulier, letterlijk (vraag → antwoord)
   for (const f of lead.field_data || []) paren.push([mens(f.name), (f.values || []).map(cleanMeta).join(", ")]);
+  const rg = regels(paren);
   return {
+    notities: notitie(d.lead_titel || "Meta-advertentie", beschrijving, lead.created_time, rg),
     naam: d.naam_vol || [d.voornaam, d.naam].filter(Boolean).join(" ") || d.email || "Onbekend", telefoon: txt(d.telefoon).slice(0, 40),
     email: txt(d.email).slice(0, 160), straat: txt(d.straat).slice(0, 160), postcode: txt(d.postcode).slice(0, 12), gemeente: txt(d.gemeente).slice(0, 80),
-    bron: "Meta", externe_id: "meta:" + lead.id, aanvraag: regels(paren), richtprijs: "", monoblock: /monoblock/i.test(d.systeem || ""),
+    bron: "Meta", externe_id: "meta:" + lead.id, aanvraag: rg, richtprijs: "", monoblock: /monoblock/i.test(d.systeem || ""),
     toestemming: true, // Meta-leadformulieren vragen altijd akkoord met het privacybeleid
   };
 }
@@ -183,6 +213,7 @@ async function stuurWebsiteLead(payload, opts) {
           ["Gemeentepagina", s.gemeentePagina !== "-" ? s.gemeentePagina : ""]] };
       } catch (e) { extra = null; }
     }
+    extra = Object.assign(extra || {}, { titel: opts && opts.titel, beschrijving: opts && opts.beschrijving });
     return await stuur(vanWebsite(payload, extra), opts);
   } catch (e) { console.error("AFP: onverwachte fout (Odoo en mail zijn niet geraakt):", e.message); return { ok: false, fout: e.message }; }
 }
@@ -202,7 +233,9 @@ async function stuurMetaLeads(kandidaten, opts) {
       const sleutel = "meta-" + k.lead.id;
       if (gekend ? gekend.has(sleutel) : !k.nieuwInOdoo) { res.overgeslagen++; continue; }
       if (gestopt || res.verstuurd + res.al + res.fout >= o.max) { res.wacht++; continue; }
-      const body = vanMeta(k.lead, k.formName, k.formId, k.payload);
+      let beschrijving = k.beschrijving || "";
+      if (!beschrijving && typeof o.beschrijving === "function") { try { beschrijving = (await o.beschrijving(k)) || ""; } catch (e) { console.warn("AFP: Odoo-beschrijving niet gelezen (notitie uit de formuliervelden):", e.message); } }
+      const body = vanMeta(k.lead, k.formName, k.formId, k.payload, beschrijving);
       const r = await stuur(body, { attempts: o.attempts, timeoutMs: o.timeoutMs, waitMs: o.waitMs, deadline: o.deadline, stopBij429: true });
       if (r.ok) {
         r.bestond ? res.al++ : res.verstuurd++;
@@ -218,4 +251,4 @@ async function stuurMetaLeads(kandidaten, opts) {
   return res;
 }
 
-module.exports = { ingesteld, stuur, stuurWebsiteLead, stuurMetaLeads, vanWebsite, vanMeta, externeIdWebsite, regels };
+module.exports = { ingesteld, stuur, stuurWebsiteLead, stuurMetaLeads, vanWebsite, vanMeta, externeIdWebsite, regels, htmlNaarTekst, notitie };

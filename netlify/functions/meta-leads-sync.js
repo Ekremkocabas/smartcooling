@@ -47,6 +47,12 @@ async function odooHasLead(call, metaId) {
   return n > 0;
 }
 
+// AFP: de beschrijving zoals ze NU in Odoo staat (enkel lezen), voor een lead die al in Odoo zat en nog niet in AFP
+const odooBeschrijving = (call) => async (k) => {
+  const r = await call("crm.lead", "search_read", [[["description", "ilike", "Meta lead-ID: " + k.lead.id], ["active", "in", [true, false]]]], { fields: ["description"], limit: 1 });
+  return (r && r[0] && r[0].description) || "";
+};
+
 // Meta field_data [{name, values:[...]}] -> plat object
 function fields(lead) {
   const o = {};
@@ -215,6 +221,7 @@ exports.handler = async (event) => {
           kandidaat.nieuwInOdoo = true;
           const out = await processLead(payload, { attempts: 1, odooTimeout: 12000, afp: false });
           // titel in Odoo: "Meta Mitsubishi MSZ-HR - naam" i.p.v. "Website aanvraag - naam"
+          kandidaat.beschrijving = (out && out.beschrijving) || "";
           const leadId = out && out.odoo && out.odoo.leadId;
           if (leadId) await call("crm.lead", "write", [[leadId], { name: payload.data.lead_titel }]).catch((e) => console.warn("titel niet aangepast:", e.message));
           nieuw++;
@@ -227,8 +234,9 @@ exports.handler = async (event) => {
   // AFP: na Odoo, binnen de tijd van de geplande functie (30 s), nooit een fout naar buiten
   let afpRes = null;
   if (afp && afp.ingesteld() && kandidaten.length) {
-    try { afpRes = await afp.stuurMetaLeads(kandidaten, { store: afpStore(event), deadline: start + Number(process.env.AFP_BUDGET_MS || 25000) }); }
+    try { afpRes = await afp.stuurMetaLeads(kandidaten, { store: afpStore(event), beschrijving: odooBeschrijving(call), deadline: start + Number(process.env.AFP_BUDGET_MS || 25000) }); }
     catch (e) { console.error("AFP fout (Odoo niet geraakt):", e.message); }
   }
   return { statusCode: 200, body: JSON.stringify({ nieuw, overgeslagen, ...(afpRes ? { afp: afpRes } : {}) }) };
 };
+exports._test = { toPayload, odooBeschrijving, odoo };
