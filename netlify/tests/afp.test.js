@@ -146,6 +146,64 @@ test("Meta-ronde met opslag: gekende leads overslaan, mislukte volgende run opni
   afpUit();
 });
 
+// ---------------- tijdsgrenzen (controle 139): AFP mag een functie nooit tot aan haar time-out ophouden ----------------
+const http = require("http");
+async function nepAfp(antwoord) { // lokale nep-webhook; antwoord(n, res) beslist per aanvraag
+  let n = 0;
+  const open = new Set();
+  const srv = http.createServer((req, res) => { open.add(res); req.resume(); req.on("end", () => antwoord(++n, res)); });
+  await new Promise((r) => srv.listen(0, "127.0.0.1", r));
+  process.env.AFP_LEADS_URL = `http://127.0.0.1:${srv.address().port}/api/leads/webhook/nep-token-abcdefghijklmnop`;
+  process.env.AFP_LEADS_KEY = "lk_nep-sleutel-tijdsgrens";
+  return { aantal: () => n, stop: () => new Promise((r) => { for (const x of open) x.destroy(); srv.closeAllConnections && srv.closeAllConnections(); srv.close(r); }) };
+}
+
+test("429 met een absurde Retry-After: wachttijd begrensd, daarna gewoon verder", async () => {
+  const s = await nepAfp((n, res) => { if (n < 3) { res.writeHead(429, { "Retry-After": "86400" }); res.end("{}"); } else { res.writeHead(200, { "Content-Type": "application/json" }); res.end('{"ok":true,"nieuw":true,"kaart_id":"k1"}'); } });
+  try {
+    const afp = fris("lib/afp.js");
+    const t = Date.now();
+    const r = await afp.stuur(afp.vanWebsite(WEB("ra-001")), { attempts: 3, waitMs: [10, 10], maxWachtMs: 150 });
+    assert.equal(r.ok, true); assert.equal(r.pogingen, 3);
+    assert.ok(Date.now() - t < 3000, "wacht niet de gevraagde 24 u");
+    assert.match(afp.stuur.toString() + require("fs").readFileSync(path.join(FN, "lib/afp.js"), "utf8"), /const MAX_WACHT = 65000/, "standaardgrens 65 s");
+  } finally { await s.stop(); afpUit(); }
+});
+
+test("noodpad (10 s): AFP die niet antwoordt stopt vóór de grens; te weinig tijd → geen aanvraag", async () => {
+  const s = await nepAfp(() => { /* antwoordt nooit */ });
+  try {
+    const afp = fris("lib/afp.js");
+    let t = Date.now();
+    let r = await afp.stuurWebsiteLead(WEB("dl-001"), { attempts: 1, timeoutMs: 3000, deadline: Date.now() + 2000 });
+    assert.equal(r.ok, false); assert.equal(s.aantal(), 1);
+    assert.ok(Date.now() - t < 1900, `afgebroken vóór de grens (${Date.now() - t} ms)`);
+    t = Date.now();
+    r = await afp.stuurWebsiteLead(WEB("dl-002"), { attempts: 1, timeoutMs: 3000, deadline: Date.now() + 1000 });
+    assert.equal(r.ok, false); assert.equal(s.aantal(), 1, "geen nieuwe aanvraag meer");
+    assert.ok(Date.now() - t < 200);
+    // submission-created geeft de grens echt door
+    assert.match(require("fs").readFileSync(path.join(FN, "submission-created.js"), "utf8"), /afpDeadline: start \+ 9000/);
+    assert.match(require("fs").readFileSync(path.join(FN, "lib/lead.js"), "utf8"), /deadline: opts\.afpDeadline \|\| 0/);
+  } finally { await s.stop(); afpUit(); }
+});
+
+test("Meta-ronde (30 s): trage opslag en trage Odoo houden de functie niet op", async () => {
+  const s = await nepAfp((n, res) => { res.writeHead(200, { "Content-Type": "application/json" }); res.end('{"ok":true,"nieuw":true,"kaart_id":"k"}'); });
+  try {
+    const afp = fris("lib/afp.js");
+    const nooit = () => new Promise(() => {});
+    const kand = ["1", "2", "3"].map((x) => ({ lead: META("99900000000000" + x), formName: "Fictief", formId: "1", payload: { data: { lead_titel: "Meta Fictief " + x, naam_vol: "Fictief " + x, telefoon: "+3247000000" + x } }, nieuwInOdoo: true }));
+    const t = Date.now();
+    const r = await afp.stuurMetaLeads(kand, { store: { list: nooit, set: async () => {} }, beschrijving: nooit, deadline: Date.now() + 9000 });
+    const duur = Date.now() - t;
+    assert.ok(duur < 9000, `klaar vóór de grens (${duur} ms)`);
+    assert.ok(r.verstuurd >= 1 && r.verstuurd + r.wacht === 3, JSON.stringify(r));
+    const r2 = await afp.stuurMetaLeads(kand, { beschrijving: nooit, deadline: Date.now() + 2000 });
+    assert.equal(r2.verstuurd, 0); assert.equal(r2.wacht, 3, "te weinig tijd: alles naar de volgende run");
+  } finally { await s.stop(); afpUit(); }
+});
+
 // ---------------- integratie: lokale AFP e2e-server + nep-Odoo ----------------
 const I = process.env.AFP_TEST_BASE && process.env.AFP_TEST_TOKEN && process.env.AFP_TEST_WEBHOOK && process.env.AFP_TEST_KEY && process.env.ODOO_TEST_URL;
 // Let op: de webhook remt 12 aanvragen per minuut per IP (ook lokaal). Deze reeks doet er 11: start de AFP-testserver vers per run.

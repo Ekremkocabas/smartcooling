@@ -659,7 +659,7 @@ async function processLead(payload, opts) {
   // AFP pas NA Odoo en de mails: een fout of traagheid bij AFP raakt die nooit. opts.afp === false: de aanroeper doet AFP zelf (Meta).
   let afpRes = null;
   if (ctx && afp && opts.afp !== false && afp.ingesteld()) {
-    try { afpRes = await afp.stuurWebsiteLead(payload, { titel: ctx.titel, beschrijving: ctx.beschrijving, attempts: opts.afpAttempts || 3, timeoutMs: opts.afpTimeout || 10000, waitMs: opts.afpWaitMs || (process.env.FAST_TEST ? [50, 50] : [2000, 5000]), score }); }
+    try { afpRes = await afp.stuurWebsiteLead(payload, { titel: ctx.titel, beschrijving: ctx.beschrijving, attempts: opts.afpAttempts || 3, timeoutMs: opts.afpTimeout || 10000, waitMs: opts.afpWaitMs || (process.env.FAST_TEST ? [50, 50] : [2000, 5000]), deadline: opts.afpDeadline || 0, score }); }
     catch (e) { console.error("AFP fout (Odoo/mail niet geraakt):", e.message); }
   }
   return { odoo: ctx && ctx.odoo, pogingen: ctx && ctx.pogingen, ...(afpRes ? { afp: afpRes } : {}), ...(opts.afp === false && ctx ? { beschrijving: ctx.beschrijving } : {}) };

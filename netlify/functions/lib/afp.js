@@ -1,4 +1,4 @@
-// netlify/functions/lib/afp.js  (v1, 27/11/2026 — testweek AircoFlowPro naast Odoo)
+// netlify/functions/lib/afp.js  (v1.1, 27/11/2026 — testweek AircoFlowPro naast Odoo; v1.1: tijdsgrenzen op wachten, opslag en Odoo-lezen)
 // Stuurt een aanvraag (website-formulier of Meta-leadformulier) OOK naar de lead-webhook van AircoFlowPro (AFP).
 // Odoo en de lead-mail via Brevo blijven exact zoals ze waren: AFP komt er enkel bij, NA die stappen.
 // Een fout bij AFP breekt nooit iets: elke functie hier vangt zelf alles op en geeft een resultaat terug (gooit nooit).
@@ -19,6 +19,9 @@ const ingesteld = () => Boolean((process.env.AFP_LEADS_URL || "").trim() && (pro
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const MAX_ITEMS = 40, MAX_WAARDE = 500, MAX_LABEL = 80; // grenzen van de AFP-webhook (veld "aanvraag")
 const TEST_LEAD = /<test lead:|^test@meta\.com$/i;
+const MAX_WACHT = 65000; // langste wachttijd tussen twee pogingen (de rem van de webhook telt per minuut)
+// belofte met tijdsgrens: een trage opslag of een trage Odoo mag de functie nooit tot aan haar time-out ophouden
+const binnen = (p, ms, wat) => { let t; return Promise.race([p, new Promise((_, nee) => { t = setTimeout(() => nee(new Error(wat + ": geen antwoord binnen " + Math.round(ms / 1000) + " s")), ms); })]).finally(() => clearTimeout(t)); };
 
 const txt = (v) => (v == null ? "" : String(v)).replace(/\r\n?/g, "\n").trim();
 const cleanMeta = (v) => String(v || "").replace(/_?–_?/g, "–").replace(/_/g, " ").replace(/\s+/g, " ").trim();
@@ -184,7 +187,7 @@ async function stuur(body, opts) {
         return { ok: true, status, kaart_id: j.kaart_id || null, nieuw: Boolean(j.nieuw), bestond: Boolean(j.bestond), pogingen: i + 1 };
       }
       laatste = `HTTP ${status}: ${tekst.replace(/\s+/g, " ").slice(0, 200)}`;
-      if (status === 429) { const ra = Number(r.headers.get("retry-after")) || 0; if (ra) wacht = Math.max(wacht, ra * 1000); }
+      if (status === 429) { const ra = Number(r.headers.get("retry-after")) || 0; if (ra) wacht = Math.min(Math.max(wacht, ra * 1000), opts.maxWachtMs || MAX_WACHT); } // nooit langer wachten dan MAX_WACHT, wat het antwoord ook zegt
       else if (status < 500 && status !== 408) { console.error(`AFP (${host}): ${body.externe_id} geweigerd – ${laatste}`); return { ok: false, status, fout: laatste, pogingen: i + 1 }; }
     } catch (e) {
       laatste = e.name === "AbortError" ? "geen antwoord binnen " + Math.round(Math.min(opts.timeoutMs, rest) / 1000) + " s" : (e.message || String(e));
@@ -227,19 +230,20 @@ async function stuurMetaLeads(kandidaten, opts) {
   try {
     if (!ingesteld()) return { ...res, uit: true };
     let gekend = null;
-    if (o.store) { try { const l = await o.store.list({ prefix: "meta-" }); gekend = new Set((l.blobs || []).map((b) => b.key)); } catch (e) { console.warn("AFP: opslag niet leesbaar, enkel nieuwe leads:", e.message); gekend = null; } }
+    if (o.store) { try { const l = await binnen(o.store.list({ prefix: "meta-" }), 4000, "opslag"); gekend = new Set((l.blobs || []).map((b) => b.key)); } catch (e) { console.warn("AFP: opslag niet leesbaar, enkel nieuwe leads:", e.message); gekend = null; } }
     let gestopt = false;
     for (const k of kandidaten) {
       const sleutel = "meta-" + k.lead.id;
       if (gekend ? gekend.has(sleutel) : !k.nieuwInOdoo) { res.overgeslagen++; continue; }
+      if (!gestopt && o.deadline && o.deadline - Date.now() < 3000) gestopt = true; // te weinig tijd in deze run: de rest volgende run
       if (gestopt || res.verstuurd + res.al + res.fout >= o.max) { res.wacht++; continue; }
       let beschrijving = k.beschrijving || "";
-      if (!beschrijving && typeof o.beschrijving === "function") { try { beschrijving = (await o.beschrijving(k)) || ""; } catch (e) { console.warn("AFP: Odoo-beschrijving niet gelezen (notitie uit de formuliervelden):", e.message); } }
+      if (!beschrijving && typeof o.beschrijving === "function") { try { beschrijving = (await binnen(o.beschrijving(k), o.deadline ? Math.max(1000, Math.min(5000, o.deadline - Date.now() - 2000)) : 5000, "Odoo-beschrijving")) || ""; } catch (e) { console.warn("AFP: Odoo-beschrijving niet gelezen (notitie uit de formuliervelden):", e.message); } }
       const body = vanMeta(k.lead, k.formName, k.formId, k.payload, beschrijving);
       const r = await stuur(body, { attempts: o.attempts, timeoutMs: o.timeoutMs, waitMs: o.waitMs, deadline: o.deadline, stopBij429: true });
       if (r.ok) {
         r.bestond ? res.al++ : res.verstuurd++;
-        if (o.store) { try { await o.store.set(sleutel, JSON.stringify({ at: new Date().toISOString(), kaart_id: r.kaart_id })); } catch (e) { console.warn("AFP: niet onthouden (volgende run opnieuw, AFP herkent het id):", e.message); } }
+        if (o.store) { try { await binnen(o.store.set(sleutel, JSON.stringify({ at: new Date().toISOString(), kaart_id: r.kaart_id })), 3000, "opslag"); } catch (e) { console.warn("AFP: niet onthouden (volgende run opnieuw, AFP herkent het id):", e.message); } }
       } else if (r.overgeslagen) res.overgeslagen++;
       else {
         res.fout++;

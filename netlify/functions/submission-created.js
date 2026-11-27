@@ -8,6 +8,7 @@ function krasStore(event) { try { connectLambda(event); return getStore("kras");
 const token = () => crypto.createHash("sha256").update("lead:" + (process.env.ODOO_API_KEY || "")).digest("hex");
 
 exports.handler = async (event) => {
+  const start = Date.now(); // enkel voor AFP: die stap mag deze functie (max. 10 s) nooit over haar tijd duwen
   let payload = {};
   try { payload = JSON.parse(event.body || "{}").payload || {}; } catch (e) { return { statusCode: 200, body: "bad json" }; }
   const base = process.env.URL || "https://smartcooling.be";
@@ -18,7 +19,7 @@ exports.handler = async (event) => {
     if (r.status === 202 || r.status === 200) { console.log("lead doorgegeven aan background (" + r.status + ")"); return { statusCode: 200, body: "queued" }; }
     console.warn("background weigerde (" + r.status + "), directe verwerking");
   } catch (e) { console.warn("background niet bereikbaar, directe verwerking:", e.message); }
-  const out = await processLead(payload, { krasStore: krasStore(event), attempts: 1, odooTimeout: 8000, afpAttempts: 1, afpTimeout: 3000 });
+  const out = await processLead(payload, { krasStore: krasStore(event), attempts: 1, odooTimeout: 8000, afpAttempts: 1, afpTimeout: 3000, afpDeadline: start + 9000 });
   return { statusCode: 200, body: JSON.stringify(out) };
 };
 exports._token = token;
